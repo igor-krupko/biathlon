@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../models/career.dart';
-import 'race_screen.dart';
-import 'points_screen.dart';
+import '../blocs/career_bloc.dart';
 
-class CareerDetailsScreen extends StatefulWidget {
+class CareerDetailsScreen extends StatelessWidget {
   final Career career;
 
   const CareerDetailsScreen({
@@ -11,25 +12,10 @@ class CareerDetailsScreen extends StatefulWidget {
     required this.career,
   });
 
-  @override
-  State<CareerDetailsScreen> createState() => _CareerDetailsScreenState();
-}
-
-class _CareerDetailsScreenState extends State<CareerDetailsScreen> {
-  late Career career;
-
-  @override
-  void initState() {
-    super.initState();
-    career = widget.career;
-  }
-
-  void _handleRaceComplete() {
-    setState(() {
-      if (career.hasNextTrack()) {
-        career.moveToNextTrack();
-      }
-    });
+  void _handleRaceComplete(BuildContext context) {
+    if (career.hasNextTrack()) {
+      context.read<CareerBloc>().add(MoveToNextTrack());
+    }
   }
 
   @override
@@ -77,15 +63,7 @@ class _CareerDetailsScreenState extends State<CareerDetailsScreen> {
                   ? null
                   : () {
                       if (career.currentTrack != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RaceScreen(
-                              track: career.currentTrack!,
-                              career: career,
-                            ),
-                          ),
-                        ).then((_) => _handleRaceComplete());
+                        context.go('/race');
                       }
                     },
               child: const Text('Next Race'),
@@ -93,19 +71,14 @@ class _CareerDetailsScreenState extends State<CareerDetailsScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PointsScreen(career: career),
-                  ),
-                );
+                context.go('/points');
               },
               child: const Text('Points'),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                context.go('/');
               },
               child: const Text('Back'),
             ),

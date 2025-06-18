@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/career.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../models/athlete.dart';
-import 'career_details_screen.dart';
+import '../blocs/career_bloc.dart';
 
 class PlayerSetupScreen extends StatefulWidget {
   const PlayerSetupScreen({super.key});
@@ -49,16 +50,9 @@ class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
         shootingDown: 90,
         shootingStanding: 90,
       );
-      final career = Career(
-        startDate: DateTime.now(),
-        player: player,
-      );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CareerDetailsScreen(career: career),
-        ),
-      );
+      
+      context.read<CareerBloc>().add(StartCareer(player));
+      context.go('/career-details');
     }
   }
 

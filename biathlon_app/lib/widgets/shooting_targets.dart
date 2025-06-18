@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/track.dart';
-import 'dart:math';
-import 'dart:async';
+import '../blocs/shooting_bloc.dart';
+import '../blocs/audio_bloc.dart';
 
 class ShootingTargets extends StatefulWidget {
   final ShootingPosition position;
@@ -18,70 +19,41 @@ class ShootingTargets extends StatefulWidget {
 }
 
 class _ShootingTargetsState extends State<ShootingTargets> with SingleTickerProviderStateMixin {
-  final List<bool> hits = List.filled(5, false);
-  final List<Offset?> hitLocations = List.filled(5, null);
-  int currentTarget = 0;
-  bool isAnimating = false;
   late AnimationController _flashController;
   late Animation<double> _flashAnimation;
   Offset cursorPosition = Offset.zero;
   final List<GlobalKey> targetKeys = List.generate(5, (_) => GlobalKey());
-  Offset swayOffset = Offset.zero;
-  Timer? swayTimer;
-  final Random _random = Random();
+  int _lastProcessedTarget = -1; // Track which target was last processed for audio
+  bool _perfectRoundSoundPlayed = false; // Track if perfect round sound was played
 
   @override
   void initState() {
     super.initState();
-    print('ShootingTargets initialized with position: ${widget.position}');
     _flashController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
     _flashAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_flashController);
-    _startSway();
-  }
-
-  void _startSway() {
-    swayTimer?.cancel();
-    _updateSway();
-  }
-
-  void _updateSway() {
-    // Sway parameters
-    final isProne = widget.position == ShootingPosition.down;
-    final maxSway = isProne ? 10.0 : 30.0; // pixels
-    final minDuration = isProne ? 100 : 50;
-    final maxDuration = isProne ? 400 : 200;
-    final swayStep = isProne ? 10.0 : 30.0; // max delta per update
-
-    // Add a small random delta to the previous offset
-    double dx = swayOffset.dx + (_random.nextDouble() * 2 - 1) * swayStep;
-    double dy = swayOffset.dy + (_random.nextDouble() * 2 - 1) * swayStep;
-
-    // Clamp to max sway distance
-    final distance = sqrt(dx * dx + dy * dy);
-    if (distance > maxSway) {
-      final scale = maxSway / distance;
-      dx *= scale;
-      dy *= scale;
-    }
-    swayOffset = Offset(dx, dy);
-    setState(() {});
-    swayTimer = Timer(Duration(milliseconds: minDuration + _random.nextInt(maxDuration - minDuration)), _updateSway);
+    
+    // Start shooting after the widget is fully built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ShootingBloc>().add(StartShooting(widget.position));
+      }
+    });
   }
 
   @override
   void dispose() {
-    print('ShootingTargets disposed');
     _flashController.dispose();
-    swayTimer?.cancel();
     super.dispose();
   }
 
   void _handleShoot(int index, Offset position) {
-    if (isAnimating || index != currentTarget) {
-      print('Shot ignored: isAnimating=$isAnimating, index=$index, currentTarget=$currentTarget');
+    final state = context.read<ShootingBloc>().state;
+    if (state is! ShootingInProgress) return;
+
+    if (state.isAnimating || index != state.currentTarget) {
       return;
     }
 
@@ -94,150 +66,206 @@ class _ShootingTargetsState extends State<ShootingTargets> with SingleTickerProv
     final targetRadius = widget.position == ShootingPosition.down ? 15.0 : 30.0;
     final isHit = hitDistance <= targetRadius;
 
-    print('Shot fired at target $index: distance=$hitDistance, radius=$targetRadius, isHit=$isHit');
-
-    setState(() {
-      hits[currentTarget] = isHit;
-      hitLocations[currentTarget] = hitPosition;
-      isAnimating = true;
-    });
+    // Play shooting sound immediately when shot is fired
+    context.read<AudioBloc>().add(PlayShootingSound());
 
     if (!isHit) {
-      print('Miss animation triggered');
-      _flashController.forward().then((_) {
-        _flashController.reverse();
+      // Add a small delay before the flash animation to match audio timing
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _flashController.forward().then((_) {
+            _flashController.reverse();
+          });
+        }
       });
     }
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          isAnimating = false;
-          currentTarget++;
-          print('Moving to next target: $currentTarget');
-          if (currentTarget >= 5) {
-            print('All targets completed, calling onComplete');
-            widget.onComplete(List<bool>.from(hits));
-          }
-        });
-      }
-    });
+    // Send the hit result and position to the BLoC
+    context.read<ShootingBloc>().add(ShootWithResult(index, hitPosition, isHit));
   }
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onHover: (event) {
-        setState(() {
-          cursorPosition = event.localPosition;
-        });
+    return BlocListener<ShootingBloc, ShootingState>(
+      listener: (context, state) {
+        if (state is ShootingCompleted) {
+          widget.onComplete(state.results);
+        }
       },
-      cursor: SystemMouseCursors.none,
-      child: Listener(
-        onPointerDown: (event) {
-          print('Pointer down at position: ${event.position}');
-          bool shotHandled = false;
-          
-          // First check if the shot is within any target area
-          for (int i = 0; i < 5; i++) {
-            if (i >= currentTarget) {
-              final RenderBox? targetBox = targetKeys[i].currentContext?.findRenderObject() as RenderBox?;
-              if (targetBox != null) {
-                final targetPosition = targetBox.localToGlobal(Offset.zero);
-                final targetSize = targetBox.size;
-                if (event.position.dx >= targetPosition.dx &&
-                    event.position.dx <= targetPosition.dx + targetSize.width &&
-                    event.position.dy >= targetPosition.dy &&
-                    event.position.dy <= targetPosition.dy + targetSize.height) {
-                  print('Target $i hit at position: ${event.position}');
-                  _handleShoot(i, event.position);
-                  shotHandled = true;
-                  break;
+      child: BlocListener<ShootingBloc, ShootingState>(
+        listener: (context, shootingState) {
+          // Handle audio for shooting results (hit/miss sounds and perfect round)
+          if (shootingState is ShootingInProgress) {
+            // Play hit/miss sounds after a delay when a shot result is processed
+            // Only process if we haven't already processed this target
+            if (shootingState.currentTarget > 0 && shootingState.currentTarget > _lastProcessedTarget) {
+              final lastShotIndex = shootingState.currentTarget - 1;
+              final wasHit = shootingState.hits[lastShotIndex];
+              
+              // Mark this target as processed
+              _lastProcessedTarget = shootingState.currentTarget;
+              
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (wasHit) {
+                  context.read<AudioBloc>().add(PlayHitSound());
+                } else {
+                  context.read<AudioBloc>().add(PlayMissSound());
+                }
+              });
+              
+              // Check for perfect round after the 5th shot (when currentTarget becomes 5)
+              if (shootingState.currentTarget == 5) {
+                final hitCount = shootingState.hits.where((hit) => hit).length;
+                if (hitCount == 5 && !_perfectRoundSoundPlayed) {
+                  _perfectRoundSoundPlayed = true;
+                  Future.delayed(const Duration(milliseconds: 800), () {
+                    if (mounted) {
+                      context.read<AudioBloc>().add(PlayPerfectRoundSound());
+                    }
+                  });
                 }
               }
             }
-          }
-
-          // If shot wasn't within any target area, count it as a miss on the current target
-          if (!shotHandled && !isAnimating) {
-            print('Shot outside target area, counting as miss');
-            final currentTargetBox = targetKeys[currentTarget].currentContext?.findRenderObject() as RenderBox?;
-            if (currentTargetBox != null) {
-              _handleShoot(currentTarget, event.position);
+          } else if (shootingState is ShootingCompleted) {
+            // Fallback: Check for perfect round when shooting is completed
+            final hitCount = shootingState.results.where((hit) => hit).length;
+            if (hitCount == 5 && !_perfectRoundSoundPlayed) {
+              _perfectRoundSoundPlayed = true;
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted) {
+                  context.read<AudioBloc>().add(PlayPerfectRoundSound());
+                }
+              });
             }
           }
         },
-        child: Stack(
-          children: [
-            // Flash animation overlay
-            AnimatedBuilder(
-              animation: _flashAnimation,
-              builder: (context, child) {
-                return Container(
-                  color: Colors.red.withOpacity(_flashAnimation.value * 0.5),
-                );
-              },
-            ),
-            // Targets
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  final isHit = hits[index];
-                  final hitLocation = hitLocations[index];
-                  final targetSize = widget.position == ShootingPosition.down ? 30.0 : 60.0;
+        child: BlocBuilder<ShootingBloc, ShootingState>(
+          builder: (context, state) {
+            if (state is! ShootingInProgress) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                  return Stack(
-                    key: targetKeys[index],
-                    children: [
-                      Container(
-                        width: targetSize,
-                        height: targetSize,
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isHit ? Colors.grey : Colors.white,
-                          border: Border.all(
-                            color: isHit ? Colors.green : Colors.black,
-                            width: 2,
-                          ),
-                        ),
-                        child: isHit
-                            ? const Icon(
-                                Icons.check,
-                                color: Colors.green,
-                                size: 24,
-                              )
-                            : null,
+            // Sway offset from BLoC state
+            final swayOffset = state.swayOffset;
+
+            return MouseRegion(
+              cursor: SystemMouseCursors.none,
+              child: Listener(
+                onPointerHover: (event) {
+                  setState(() {
+                    cursorPosition = event.localPosition;
+                  });
+                },
+                onPointerDown: (event) {
+                  setState(() {
+                    cursorPosition = event.localPosition;
+                  });
+                  bool shotHandled = false;
+                  
+                  // Check if the shot is within any target area
+                  for (int i = 0; i < 5; i++) {
+                    if (i >= state.currentTarget) {
+                      final RenderBox? targetBox = targetKeys[i].currentContext?.findRenderObject() as RenderBox?;
+                      if (targetBox != null) {
+                        final targetPosition = targetBox.localToGlobal(Offset.zero);
+                        final targetSize = targetBox.size;
+                        // Use a slightly larger area for easier targeting
+                        final expandedSize = Size(targetSize.width + 20, targetSize.height + 20);
+                        final expandedPosition = Offset(
+                          targetPosition.dx - 10,
+                          targetPosition.dy - 10,
+                        );
+                        
+                        if (event.position.dx >= expandedPosition.dx &&
+                            event.position.dx <= expandedPosition.dx + expandedSize.width &&
+                            event.position.dy >= expandedPosition.dy &&
+                            event.position.dy <= expandedPosition.dy + expandedSize.height) {
+                          _handleShoot(i, event.position);
+                          shotHandled = true;
+                          break;
+                        }
+                      }
+                    }
+                  }
+
+                  // If shot wasn't within any target area, count it as a miss on the current target
+                  if (!shotHandled && !state.isAnimating) {
+                    final currentTargetBox = targetKeys[state.currentTarget].currentContext?.findRenderObject() as RenderBox?;
+                    if (currentTargetBox != null) {
+                      _handleShoot(state.currentTarget, event.position);
+                    }
+                  }
+                },
+                child: Stack(
+                  children: [
+                    // Flash animation overlay
+                    AnimatedBuilder(
+                      animation: _flashAnimation,
+                      builder: (context, child) {
+                        return Container(
+                          color: Colors.red.withOpacity(_flashAnimation.value * 0.5),
+                        );
+                      },
+                    ),
+                    // Targets
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (index) {
+                          final isHit = state.hits[index];
+                          final hitLocation = state.hitLocations[index];
+                          final targetSize = widget.position == ShootingPosition.down ? 30.0 : 60.0;
+
+                          return Stack(
+                            key: targetKeys[index],
+                            children: [
+                              Container(
+                                width: targetSize,
+                                height: targetSize,
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isHit ? Colors.grey : Colors.white,
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              if (hitLocation != null)
+                                Positioned(
+                                  left: hitLocation.dx - 4,
+                                  top: hitLocation.dy - 4,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: isHit ? Colors.green : Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        }),
                       ),
-                      if (hitLocation != null)
-                        Positioned(
-                          left: hitLocation.dx - 4,
-                          top: hitLocation.dy - 4,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: isHit ? Colors.green : Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
+                    ),
+                    // Custom aim/crosshair overlay
+                    Positioned(
+                      left: cursorPosition.dx + swayOffset.dx - 20,
+                      top: cursorPosition.dy + swayOffset.dy - 20,
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          size: const Size(40, 40),
+                          painter: AimCursorPainter(),
                         ),
-                    ],
-                  );
-                }),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // Cursor with sway
-            Positioned(
-              left: cursorPosition.dx - 20 + swayOffset.dx,
-              top: cursorPosition.dy - 20 + swayOffset.dy,
-              child: CustomPaint(
-                size: const Size(40, 40),
-                painter: AimCursorPainter(),
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -253,7 +281,7 @@ class AimCursorPainter extends CustomPainter {
       ..strokeWidth = 2;
 
     final center = Offset(size.width / 2, size.height / 2);
-    const radius = 20.0;
+    const radius = 16.0;
 
     // Draw crosshair
     canvas.drawLine(
