@@ -86,6 +86,12 @@ class _RaceScreenState extends State<RaceScreen> {
   Widget _buildRaceInProgress(BuildContext context, RaceInProgress state) {
     return Stack(
       children: [
+        Positioned.fill(
+          child: Image.asset(
+            state.track.backgroundAsset,
+            fit: BoxFit.cover,
+          ),
+        ),
         Center(
           child: state.isShooting
               ? BlocProvider<shooting.ShootingBloc>(

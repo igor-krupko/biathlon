@@ -27,6 +27,7 @@ class Track {
   final List<ShootingPosition> shootingPositions;
   final double lapDistance; // in meters
   final TrackType type;
+  final String backgroundAsset;
 
   const Track({
     required this.name,
@@ -36,6 +37,7 @@ class Track {
     required this.shootingPositions,
     required this.lapDistance,
     required this.type,
+    required this.backgroundAsset,
   });
 
   // Calculate total distance in meters
@@ -46,6 +48,7 @@ class Track {
     required String name,
     required String country,
     required double lapDistance,
+    required String backgroundAsset,
   }) {
     return Track(
       name: name,
@@ -58,6 +61,7 @@ class Track {
       ],
       lapDistance: lapDistance,
       type: TrackType.sprint,
+      backgroundAsset: backgroundAsset,
     );
   }
 
@@ -66,6 +70,7 @@ class Track {
     required String name,
     required String country,
     required double lapDistance,
+    required String backgroundAsset,
   }) {
     return Track(
       name: name,
@@ -80,6 +85,7 @@ class Track {
       ],
       lapDistance: lapDistance,
       type: TrackType.pursuit,
+      backgroundAsset: backgroundAsset,
     );
   }
 
@@ -88,6 +94,7 @@ class Track {
     required String name,
     required String country,
     required double lapDistance,
+    required String backgroundAsset,
   }) {
     return Track(
       name: name,
@@ -102,6 +109,7 @@ class Track {
       ],
       lapDistance: lapDistance,
       type: TrackType.mass,
+      backgroundAsset: backgroundAsset,
     );
   }
 
@@ -110,6 +118,7 @@ class Track {
     required String name,
     required String country,
     required double lapDistance,
+    required String backgroundAsset,
   }) {
     return Track(
       name: name,
@@ -124,6 +133,7 @@ class Track {
       ],
       lapDistance: lapDistance,
       type: TrackType.individual,
+      backgroundAsset: backgroundAsset,
     );
   }
 
