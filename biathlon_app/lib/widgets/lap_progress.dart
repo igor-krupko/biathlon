@@ -79,7 +79,7 @@ class _LapProgressState extends State<LapProgress> {
                       children: [
                         // Progress fill
                         FractionallySizedBox(
-                          widthFactor: state.stoppedProgress ?? state.currentProgress,
+                          widthFactor: state.currentProgress,
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.green,

@@ -140,6 +140,7 @@ class LapProgressBloc extends Bloc<LapProgressEvent, LapProgressState> {
             currentSegment: newCurrentSegment,
             isAnimating: true,
             stoppedProgress: null,
+            currentProgress: 0.0,
           ));
           _startNextSegment();
         }
@@ -162,6 +163,7 @@ class LapProgressBloc extends Bloc<LapProgressEvent, LapProgressState> {
     emit(currentState.copyWith(
       isAnimating: false,
       stoppedProgress: progress,
+      currentProgress: progress
     ));
   }
 
@@ -174,6 +176,7 @@ class LapProgressBloc extends Bloc<LapProgressEvent, LapProgressState> {
     emit(currentState.copyWith(
       isAnimating: true,
       stoppedProgress: null,
+      currentProgress: 0.0,
     ));
     _startNextSegment();
   }

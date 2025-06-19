@@ -15,8 +15,8 @@ class RaceStats {
 
   String get formattedTotalTime {
     final minutes = (totalTime / 60).floor();
-    final seconds = (totalTime % 60).floor();
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+    final seconds = totalTime % 60;
+    return '$minutes:${seconds.toStringAsFixed(1).padLeft(4, '0')}';
   }
 
   static double calculateSegmentTime(double progress) {
@@ -70,10 +70,10 @@ class RaceSimulator {
     for (int lap = 0; lap < track.laps; lap++) {
       for (int seg = 0; seg < segmentsPerLap; seg++) {
         // Simulate speed: base 16s, scale by athlete speed (80-100 -> 0.8-1.0x), add randomness
-        double base = 16.0;
+        double base = 8.0;
         double speedFactor = (athlete.speed + random.nextInt(21) - 12) / 100.0; // ±3 randomness
         speedFactor = sqrt(speedFactor.clamp(0.5, 1.1));
-        double time = base / speedFactor;
+        double time = base + 8.0 / speedFactor;
         // Add a little more randomness
         time += random.nextDouble() * 2 - 1; // ±1s
         time = time.clamp(12.0, 32.0);

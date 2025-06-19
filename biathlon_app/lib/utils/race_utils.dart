@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 class RaceUtils {
   static String formatTime(double seconds) {
     final minutes = (seconds / 60).floor();
-    final remainingSeconds = (seconds % 60).floor();
-    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+    final remainingSeconds = seconds % 60;
+    return '$minutes:${remainingSeconds.toStringAsFixed(1).padLeft(4, '0')}';
   }
 
   static String formatTimeDiff(double seconds) {
-    if (seconds <= 0) return '0:00';
+    if (seconds <= 0) return '0:00.0';
     final minutes = (seconds / 60).floor();
-    final remainingSeconds = (seconds % 60).round();
-    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+    final remainingSeconds = seconds % 60;
+    return '$minutes:${remainingSeconds.toStringAsFixed(1).padLeft(4, '0')}';
   }
 
   static String countryToFlag(String country) {
@@ -29,6 +29,13 @@ class RaceUtils {
       'Sweden': 'SE',
       'Slovakia': 'SK',
       'Ukraine': 'UA',
+      'Japan': 'JP',
+      'South Korea': 'KR',
+      'Slovenia': 'SI',
+      'Estonia': 'EE',
+      'Switzerland': 'CH',
+      'Lithuania': 'LT',
+      'Latvia': 'LV',
     };
     final code = map[country] ?? '';
     if (code.length != 2) return '';

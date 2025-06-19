@@ -257,12 +257,18 @@ class _RaceScreenState extends State<RaceScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Your Place: ${state.playerPlace}',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
               Text('Total Time: ${RaceUtils.formatTime(state.totalTime)}'),
               const SizedBox(height: 8),
               Text('Total Misses: ${state.shootingMisses.fold(0, (sum, misses) => sum + misses)}'),
               const SizedBox(height: 16),
-              const Text('Leaderboard:'),
-              ..._buildFinalLeaderboard(dialogContext, state.allResults, state.player),
+              PodiumWidget(results: state.allResults),
+              const SizedBox(height: 24),
+              _buildResultsTable(dialogContext, state.allResults),
               const SizedBox(height: 16),
             ],
           ),
@@ -285,66 +291,49 @@ class _RaceScreenState extends State<RaceScreen> {
     allResultsSorted.sort((a, b) => a.totalTime.compareTo(b.totalTime));
     final leaderTime = allResultsSorted.first.totalTime;
     final playerIndex = allResultsSorted.indexWhere((r) => r.athlete.name == player.name);
-    
     return allResultsSorted.asMap().entries.map((entry) {
       final diff = entry.value.totalTime - leaderTime;
-      final showTime = entry.key == 0
-          ? RaceUtils.formatTime(entry.value.totalTime)
-          : '+${RaceUtils.formatTimeDiff(diff)}';
+      final showTime = RaceUtils.formatTime(entry.value.totalTime);
+      final showDiff = entry.key == 0 ? '' : '+${RaceUtils.formatTimeDiff(diff)}';
       final totalMisses = entry.value.shootingMisses.fold(0, (a, b) => a + b);
       final flag = RaceUtils.countryToFlag(entry.value.athlete.country);
-      
-      // Get points based on track type
+      // Get points based on place (example logic, adjust as needed)
       final points = entry.key < 40 
           ? (entry.key < 30 ? usualRacePoints[entry.key] : 0)
           : 0;
-      
-      return RichText(
-        text: TextSpan(
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2.0),
+        child: Row(
           children: [
-            TextSpan(text: '${entry.key + 1}. ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal)),
-            RaceUtils.buildFlagNameSpan(flag, entry.value.athlete.name, entry.value.athlete.surname),
-            TextSpan(text: ' $showTime (${totalMisses} misses)', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal)),
-            TextSpan(text: '   $points pts', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+            Text('${entry.key + 1}. ', style: const TextStyle(fontSize: 14)),
+            Text(flag, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                '${entry.value.athlete.name} ${entry.value.athlete.surname}',
+                style: TextStyle(
+                  fontWeight: entry.key == playerIndex ? FontWeight.bold : FontWeight.normal,
+                  color: entry.key == playerIndex ? Colors.blue : DefaultTextStyle.of(context).style.color,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(showTime, style: const TextStyle(fontSize: 13)),
+            if (showDiff.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              Text(showDiff, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+            ],
+            const SizedBox(width: 8),
+            Text('Misses: $totalMisses', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(width: 8),
+            Text('$points pts', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
           ],
-          style: TextStyle(
-            fontWeight: entry.key == playerIndex ? FontWeight.bold : FontWeight.normal,
-            color: entry.key == playerIndex ? Colors.blue : DefaultTextStyle.of(context).style.color,
-            fontSize: 14,
-          ),
         ),
       );
     }).toList();
-  }
-
-  Widget _buildCumulativeTimesTable(BuildContext context, List<AthleteRaceResult> allResults, Athlete player) {
-    final shown = [...allResults];
-    final maxSplits = shown.map((r) => r.cumulativeTimes.length).fold(0, (a, b) => a > b ? a : b);
-    
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: [
-          const DataColumn(label: Text('Athlete')),
-          ...List.generate(maxSplits, (i) => DataColumn(label: Text('S${i + 1}'))),
-        ],
-        rows: shown.map((r) {
-          final flag = RaceUtils.countryToFlag(r.athlete.country);
-          return DataRow(
-            cells: [
-              DataCell(RichText(
-                text: RaceUtils.buildFlagNameSpan(flag, r.athlete.name, r.athlete.surname),
-              )),
-              ...List.generate(maxSplits, (i) => DataCell(
-                i < r.cumulativeTimes.length
-                    ? Text(RaceUtils.formatTime(r.cumulativeTimes[i]))
-                    : const Text('-'),
-              )),
-            ],
-          );
-        }).toList(),
-      ),
-    );
   }
 }
 
@@ -410,4 +399,214 @@ class ShootingView extends StatelessWidget {
       ],
     );
   }
-} 
+}
+
+class PodiumWidget extends StatelessWidget {
+  final List<AthleteRaceResult> results;
+  const PodiumWidget({super.key, required this.results});
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = [...results];
+    sorted.sort((a, b) => a.totalTime.compareTo(b.totalTime));
+    final podium = sorted.take(3).toList();
+    final leaderTime = podium.isNotEmpty ? podium.first.totalTime : 0.0;
+    // If less than 3, fill with dummy placeholders
+    while (podium.length < 3) {
+      podium.add(_dummyAthleteRaceResult());
+    }
+    // 2nd, 1st, 3rd (stairs effect)
+    return SizedBox(
+      height: 250,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _PodiumStep(
+            place: 2,
+            result: podium[1],
+            height: 60,
+            color: Colors.grey[400]!,
+            isPlaceholder: results.length < 2,
+            leaderTime: leaderTime,
+            points: 1 < 40 ? (1 < 30 ? usualRacePoints[1] : 0) : 0,
+          ),
+          _PodiumStep(
+            place: 1,
+            result: podium[0],
+            height: 90,
+            color: Colors.amber[400]!,
+            isPlaceholder: results.isEmpty,
+            leaderTime: leaderTime,
+            points: 0 < 40 ? (0 < 30 ? usualRacePoints[0] : 0) : 0,
+          ),
+          _PodiumStep(
+            place: 3,
+            result: podium[2],
+            height: 40,
+            color: Colors.brown[300]!,
+            isPlaceholder: results.length < 3,
+            leaderTime: leaderTime,
+            points: 2 < 40 ? (2 < 30 ? usualRacePoints[2] : 0) : 0,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Returns a dummy AthleteRaceResult for placeholder
+  AthleteRaceResult _dummyAthleteRaceResult() {
+    return AthleteRaceResult(
+      athlete: const Athlete(
+        name: '-',
+        surname: '',
+        country: '',
+        speed: 0,
+        shootingDown: 0,
+        shootingStanding: 0,
+      ),
+      segmentTimes: const [],
+      shootingMisses: const [],
+      cumulativeTimes: const [],
+      totalTime: 0,
+    );
+  }
+}
+
+class _PodiumStep extends StatelessWidget {
+  final int place;
+  final AthleteRaceResult result;
+  final double height;
+  final Color color;
+  final bool isPlaceholder;
+  final double leaderTime;
+  final int points;
+  const _PodiumStep({required this.place, required this.result, required this.height, required this.color, this.isPlaceholder = false, required this.leaderTime, required this.points});
+
+  @override
+  Widget build(BuildContext context) {
+    final showTime = RaceUtils.formatTime(result.totalTime);
+    final diff = result.totalTime - leaderTime;
+    final showDiff = place == 1 ? '' : '+${RaceUtils.formatTimeDiff(diff)}';
+    final totalMisses = result.shootingMisses.fold(0, (a, b) => a + b);
+    return SizedBox(
+      width: 110,
+      height: 250, // Fixed height for the whole podium step
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          // Step box at the bottom
+          Positioned(
+            bottom: 0,
+            child: Container(
+              width: 100,
+              height: height,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.black26),
+              ),
+              child: Text(
+                '$place',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ),
+          // Flag, name, and stats above the step
+          Positioned(
+            bottom: height + 4, // 4px gap above the step
+            left: 0,
+            right: 0,
+            child: (!isPlaceholder && result.athlete.name != '-')
+                ? SizedBox(
+                    height: 200,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          RaceUtils.countryToFlag(result.athlete.country),
+                          style: const TextStyle(fontSize: 22),
+                        ),
+                        Text(
+                          '${result.athlete.name} ${result.athlete.surname}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.visible,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(showTime, style: const TextStyle(fontSize: 13)),
+                        if (showDiff.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(showDiff, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                        ],
+                        const SizedBox(height: 2),
+                        Text('Misses: ${totalMisses.toString()}', style: const TextStyle(fontSize: 13)),
+                        const SizedBox(height: 2),
+                        Text('$points pts', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: const [
+                      SizedBox(height: 24),
+                      Text('-', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _buildResultsTable(BuildContext context, List<AthleteRaceResult> allResults) {
+  final sorted = [...allResults];
+  sorted.sort((a, b) => a.totalTime.compareTo(b.totalTime));
+  final rest = sorted.length > 3 ? sorted.sublist(3) : [];
+  final leaderTime = sorted.isNotEmpty ? sorted.first.totalTime : 0.0;
+  if (rest.isEmpty) {
+    return const Text('No other results.');
+  }
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: rest.asMap().entries.map((entry) {
+      final idx = entry.key + 4;
+      final r = entry.value;
+      final flag = RaceUtils.countryToFlag(r.athlete.country);
+      final totalMisses = r.shootingMisses.fold(0, (a, b) => a + b);
+      final showTime = RaceUtils.formatTime(r.totalTime);
+      final diff = r.totalTime - leaderTime;
+      final showDiff = idx == 1 ? '' : '+${RaceUtils.formatTimeDiff(diff)}';
+      final points = (idx - 1) < 40 ? ((idx - 1) < 30 ? usualRacePoints[idx - 1] : 0) : 0;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2.0),
+        child: Row(
+          children: [
+            Text('$idx. ', style: const TextStyle(fontSize: 14)),
+            Text(flag, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                '${r.athlete.name} ${r.athlete.surname}',
+                style: const TextStyle(fontSize: 14),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (showDiff.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              Text(showDiff, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+            ],
+            const SizedBox(width: 8),
+            Text('Misses: $totalMisses', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(width: 8),
+            Text('$points pts', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+          ],
+        ),
+      );
+    }).toList(),
+  );
+}

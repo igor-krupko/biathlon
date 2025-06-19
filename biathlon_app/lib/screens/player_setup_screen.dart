@@ -31,6 +31,13 @@ class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
     'Sweden',
     'Slovakia',
     'Ukraine',
+    'Japan',
+    'South Korea',
+    'Slovenia',
+    'Estonia',
+    'Switzerland',
+    'Lithuania',
+    'Latvia',
   ];
 
   @override
