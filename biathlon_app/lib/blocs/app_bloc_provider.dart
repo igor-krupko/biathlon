@@ -62,9 +62,6 @@ class AppBlocProvider extends StatelessWidget {
             settingsService: SettingsService(),
           ),
         ),
-        BlocProvider<ShootingBloc>(
-          create: (context) => ShootingBloc(),
-        ),
         BlocProvider<LapProgressBloc>(
           create: (context) => LapProgressBloc(),
         ),
@@ -83,6 +80,5 @@ extension BlocExtension on BuildContext {
   CareerBloc get careerBloc => BlocProvider.of<CareerBloc>(this);
   PointsBloc get pointsBloc => BlocProvider.of<PointsBloc>(this);
   RaceBloc get raceBloc => BlocProvider.of<RaceBloc>(this);
-  ShootingBloc get shootingBloc => BlocProvider.of<ShootingBloc>(this);
   LapProgressBloc get lapProgressBloc => BlocProvider.of<LapProgressBloc>(this);
 } 

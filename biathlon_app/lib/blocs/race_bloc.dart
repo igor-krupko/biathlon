@@ -254,7 +254,7 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
       final segmentsCompletedInLap = currentState.segmentTimes.length % segmentsInLap;
       
       if (segmentsCompletedInLap < segmentsInLap) {
-        final segmentTime = RaceStats.calculateSegmentTime(event.progress);
+        final segmentTime = RaceStats.calculateSegmentTime(event.progress, currentState.player.speed / 100.0);
         final newSegmentTimes = List<double>.from(currentState.segmentTimes)..add(segmentTime);
         final newTotalTime = currentState.totalTime + segmentTime;
         

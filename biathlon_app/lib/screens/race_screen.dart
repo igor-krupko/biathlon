@@ -88,17 +88,20 @@ class _RaceScreenState extends State<RaceScreen> {
       children: [
         Center(
           child: state.isShooting
-              ? ShootingView(
-                  position: state.track.shootingPositions[state.currentShooting],
-                  onComplete: (hits) {
-                    context.read<RaceBloc>().add(
-                      CompleteShooting(
-                        state.currentShooting,
-                        hits.where((hit) => hit).length,
-                        hits.length,
-                      ),
-                    );
-                  },
+              ? BlocProvider<shooting.ShootingBloc>(
+                  create: (_) => shooting.ShootingBloc(player: state.player),
+                  child: ShootingView(
+                    position: state.track.shootingPositions[state.currentShooting],
+                    onComplete: (hits) {
+                      context.read<RaceBloc>().add(
+                        CompleteShooting(
+                          state.currentShooting,
+                          hits.where((hit) => hit).length,
+                          hits.length,
+                        ),
+                      );
+                    },
+                  ),
                 )
               : LapView(
                   lapNumber: state.currentLap + 1,

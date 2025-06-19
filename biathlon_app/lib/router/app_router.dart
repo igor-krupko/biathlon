@@ -9,6 +9,7 @@ import '../screens/career_details_screen.dart';
 import '../screens/race_screen.dart';
 import '../screens/points_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/training_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -41,6 +42,11 @@ class AppRouter {
           create: (context) => PointsBloc(),
           child: const PointsScreenWrapper(),
         ),
+      ),
+      GoRoute(
+        path: '/training',
+        name: 'training',
+        builder: (context, state) => const TrainingScreen(),
       ),
       GoRoute(
         path: '/settings',

@@ -29,7 +29,7 @@ class Career {
   int currentTrackIndex;
   final List<RacePointsResult> racePointsHistory = [];
   final List<List<RacePointsResult>> allRacesResults = [];
-  final Athlete player;
+  Athlete player;
 
   Career({
     required this.startDate,
@@ -91,5 +91,24 @@ class Career {
 
   void addFullRaceResults(List<RacePointsResult> results) {
     allRacesResults.add(results);
+  }
+
+  int get playerMoney => player.money;
+
+  void addMoneyToPlayer(int amount) {
+    // Create a new Athlete with updated money
+    final updatedPlayer = Athlete(
+      name: player.name,
+      surname: player.surname,
+      country: player.country,
+      speed: player.speed,
+      shootingDown: player.shootingDown,
+      shootingStanding: player.shootingStanding,
+      money: player.money + amount,
+    );
+    // This is a workaround since player is final; in a real app, refactor to allow updating player
+    // ignore: invalid_use_of_visible_for_testing_member, invalid_use_of_protected_member
+    // ignore: prefer_final_fields
+    player = updatedPlayer;
   }
 } 

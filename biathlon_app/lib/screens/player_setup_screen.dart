@@ -53,9 +53,10 @@ class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
         name: _nameController.text,
         surname: _surnameController.text,
         country: _selectedCountry,
-        speed: 90,
-        shootingDown: 90,
-        shootingStanding: 90,
+        speed: 70,
+        shootingDown: 70,
+        shootingStanding: 70,
+        money: 0,
       );
       
       context.read<CareerBloc>().add(StartCareer(player));

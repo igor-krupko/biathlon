@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:async';
 import '../models/track.dart';
 import 'audio_bloc.dart';
+import '../models/athlete.dart';
 
 // Events
 abstract class ShootingEvent extends Equatable {
@@ -104,8 +105,9 @@ class ShootingCompleted extends ShootingState {
 class ShootingBloc extends Bloc<ShootingEvent, ShootingState> {
   Timer? _swayTimer;
   final Random _random = Random();
+  final Athlete player;
 
-  ShootingBloc() : super(ShootingInitial()) {
+  ShootingBloc({required this.player}) : super(ShootingInitial()) {
     on<StartShooting>(_onStartShooting);
     on<ShootWithResult>(_onShootWithResult);
     on<UpdateSway>(_onUpdateSway);
@@ -178,8 +180,10 @@ class ShootingBloc extends Bloc<ShootingEvent, ShootingState> {
     
     final currentState = state as ShootingInProgress;
     final isProne = currentState.position == ShootingPosition.down;
-    final maxSway = isProne ? 10.0 : 30.0;
-    final swayStep = isProne ? 10.0 : 30.0;
+    final stat = isProne ? player.shootingDown : player.shootingStanding;
+    final statFraction = stat / 100.0;
+    final maxSway = (isProne ? 12.0 : 36.0);
+    final swayStep = (isProne ? 6.0 : 18.0) / statFraction;
 
     double dx = currentState.swayOffset.dx + (_random.nextDouble() * 2 - 1) * swayStep;
     double dy = currentState.swayOffset.dy + (_random.nextDouble() * 2 - 1) * swayStep;
@@ -209,8 +213,12 @@ class ShootingBloc extends Bloc<ShootingEvent, ShootingState> {
 
   void _updateSway() {
     add(const UpdateSway());
-    final minDuration = 100;
-    final maxDuration = 400;
+    final currentState = state as ShootingInProgress;
+    final isProne = currentState.position == ShootingPosition.down;
+    final stat = isProne ? player.shootingDown : player.shootingStanding;
+    final statFraction = stat / 100.0;
+    final minDuration = (100 * statFraction).toInt();
+    final maxDuration = (400 * statFraction).toInt();
     _swayTimer = Timer(
       Duration(milliseconds: minDuration + _random.nextInt(maxDuration - minDuration)),
       _updateSway,
