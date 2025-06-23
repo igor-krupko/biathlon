@@ -1,25 +1,8 @@
-enum ShootingPosition {
-  down,
-  standing;
-
-  String get name {
-    switch (this) {
-      case ShootingPosition.down:
-        return 'Prone';
-      case ShootingPosition.standing:
-        return 'Standing';
-    }
-  }
-}
-
-enum TrackType {
-  sprint,
-  pursuit,
-  mass,
-  individual,
-}
+import 'shooting_position.dart';
+import 'track_type.dart';
 
 class Track {
+  final int id;
   final String name;
   final String country;
   final int laps;
@@ -30,6 +13,7 @@ class Track {
   final String backgroundAsset;
 
   const Track({
+    required this.id,
     required this.name,
     required this.country,
     required this.laps,
@@ -45,12 +29,14 @@ class Track {
 
   // Factory method to create a Sprint track
   factory Track.sprint({
+    required int id,
     required String name,
     required String country,
     required double lapDistance,
     required String backgroundAsset,
   }) {
     return Track(
+      id: id,
       name: name,
       country: country,
       laps: 3,
@@ -67,12 +53,14 @@ class Track {
 
   // Factory method to create a Pursuit track
   factory Track.pursuit({
+    required int id,
     required String name,
     required String country,
     required double lapDistance,
     required String backgroundAsset,
   }) {
     return Track(
+      id: id,
       name: name,
       country: country,
       laps: 5,
@@ -91,12 +79,14 @@ class Track {
 
   // Factory method to create a Mass Start track
   factory Track.mass({
+    required int id,
     required String name,
     required String country,
     required double lapDistance,
     required String backgroundAsset,
   }) {
     return Track(
+      id: id,
       name: name,
       country: country,
       laps: 5,
@@ -115,12 +105,14 @@ class Track {
 
   // Factory method to create an Individual track
   factory Track.individual({
+    required int id,
     required String name,
     required String country,
     required double lapDistance,
     required String backgroundAsset,
   }) {
     return Track(
+      id: id,
       name: name,
       country: country,
       laps: 5,

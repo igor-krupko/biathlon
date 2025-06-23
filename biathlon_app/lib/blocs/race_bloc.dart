@@ -4,9 +4,12 @@ import '../models/track.dart';
 import '../models/athlete.dart';
 import '../models/race_stats.dart';
 import '../models/career.dart';
+import '../models/athlete_race_result.dart';
+import '../models/race_points_result.dart';
 import '../services/race_simulation_service.dart';
 import '../services/audio_service.dart';
 import '../services/settings_service.dart';
+import '../models/race.dart';
 
 // Events
 abstract class RaceEvent extends Equatable {
@@ -17,13 +20,13 @@ abstract class RaceEvent extends Equatable {
 }
 
 class StartRace extends RaceEvent {
-  final Track track;
+  final Race race;
   final Athlete player;
 
-  const StartRace(this.track, this.player);
+  const StartRace(this.race, this.player);
 
   @override
-  List<Object?> get props => [track, player];
+  List<Object?> get props => [race, player];
 }
 
 class CompleteSegment extends RaceEvent {
@@ -72,7 +75,7 @@ class RaceInitial extends RaceState {}
 class RaceLoading extends RaceState {}
 
 class RaceInProgress extends RaceState {
-  final Track track;
+  final Race race;
   final Athlete player;
   final int currentLap;
   final int totalLaps;
@@ -89,7 +92,7 @@ class RaceInProgress extends RaceState {
   final double lastIntermediateTime;
 
   const RaceInProgress({
-    required this.track,
+    required this.race,
     required this.player,
     required this.currentLap,
     required this.totalLaps,
@@ -108,7 +111,7 @@ class RaceInProgress extends RaceState {
 
   @override
   List<Object?> get props => [
-        track,
+        race,
         player,
         currentLap,
         totalLaps,
@@ -126,7 +129,7 @@ class RaceInProgress extends RaceState {
       ];
 
   RaceInProgress copyWith({
-    Track? track,
+    Race? race,
     Athlete? player,
     int? currentLap,
     int? totalLaps,
@@ -143,7 +146,7 @@ class RaceInProgress extends RaceState {
     double? lastIntermediateTime,
   }) {
     return RaceInProgress(
-      track: track ?? this.track,
+      race: race ?? this.race,
       player: player ?? this.player,
       currentLap: currentLap ?? this.currentLap,
       totalLaps: totalLaps ?? this.totalLaps,
@@ -163,7 +166,7 @@ class RaceInProgress extends RaceState {
 }
 
 class RaceFinished extends RaceState {
-  final Track track;
+  final Race race;
   final Athlete player;
   final double totalTime;
   final List<double> segmentTimes;
@@ -173,7 +176,7 @@ class RaceFinished extends RaceState {
   final List<RacePointsResult> raceResults;
 
   const RaceFinished({
-    required this.track,
+    required this.race,
     required this.player,
     required this.totalTime,
     required this.segmentTimes,
@@ -185,7 +188,7 @@ class RaceFinished extends RaceState {
 
   @override
   List<Object?> get props => [
-        track,
+        race,
         player,
         totalTime,
         segmentTimes,
@@ -226,13 +229,13 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
     await _audioService.initialize();
     
     // Simulate competitors using the service
-    final allSimulatedResults = await _simulationService.simulateCompetitors(event.track);
+    final allSimulatedResults = await _simulationService.simulateCompetitors(event.race.track, event.race.date.year);
 
     emit(RaceInProgress(
-      track: event.track,
+      race: event.race,
       player: event.player,
       currentLap: 0,
-      totalLaps: event.track.laps,
+      totalLaps: event.race.track.laps,
       currentShooting: 0,
       isShooting: false,
       segmentTimes: [],
@@ -250,7 +253,7 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
   void _onCompleteSegment(CompleteSegment event, Emitter<RaceState> emit) {
     if (state is RaceInProgress) {
       final currentState = state as RaceInProgress;
-      final segmentsInLap = (currentState.track.lapDistance / 100).ceil();
+      final segmentsInLap = (currentState.race.track.lapDistance / 100).ceil();
       final segmentsCompletedInLap = currentState.segmentTimes.length % segmentsInLap;
       
       if (segmentsCompletedInLap < segmentsInLap) {
@@ -318,10 +321,10 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
       final currentState = state as RaceInProgress;
       
       // Calculate final results using the service
-      final raceResults = _simulationService.calculateFinalResults(currentState);
+      final raceResults = _simulationService.calculateFinalResults(currentState, currentState.race);
       
       emit(RaceFinished(
-        track: currentState.track,
+        race: currentState.race,
         player: currentState.player,
         totalTime: currentState.totalTime,
         segmentTimes: currentState.segmentTimes,

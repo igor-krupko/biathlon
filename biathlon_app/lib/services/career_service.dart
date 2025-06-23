@@ -1,35 +1,39 @@
 import '../models/career.dart';
 import '../models/athlete.dart';
 import '../models/track.dart';
+import '../models/season.dart';
+import '../models/race.dart';
 
 /// Service responsible for career-related business logic
 class CareerService {
   /// Check if career is completed
   bool isCareerCompleted(Career career) {
-    return !career.hasNextTrack();
+    return !career.hasNextSeason() && !career.hasNextRace();
   }
 
-  /// Get next track information
-  NextTrackInfo? getNextTrackInfo(Career career) {
-    if (career.currentTrack == null) return null;
-    
-    return NextTrackInfo(
-      track: career.currentTrack!,
-      isLastTrack: !career.hasNextTrack(),
+  /// Get next race information
+  NextRaceInfo? getNextRaceInfo(Career career) {
+    if (career.currentSeason.races.isEmpty || career.currentRace == null) return null;
+    return NextRaceInfo(
+      race: career.currentRace!,
+      isLastRace: !career.hasNextRace(),
+      season: career.currentSeason,
+      isLastSeason: !career.hasNextSeason(),
     );
   }
 
   /// Get career progress information
   CareerProgress getCareerProgress(Career career) {
-    final totalTracks = career.tracks.length;
-    final completedTracks = career.allRacesResults.length; // Use completed races instead
-    final currentTrackIndex = career.currentTrackIndex;
-    
+    final totalSeasons = career.seasons.length;
+    final currentSeasonIndex = career.currentSeasonIndex;
+    final totalRaces = career.currentSeason.races.length;
+    final completedRaces = career.currentRaceIndex;
     return CareerProgress(
-      totalTracks: totalTracks,
-      completedTracks: completedTracks,
-      currentTrackIndex: currentTrackIndex,
-      progressPercentage: totalTracks > 0 ? (completedTracks / totalTracks) * 100.0 : 0.0,
+      totalSeasons: totalSeasons,
+      currentSeasonIndex: currentSeasonIndex,
+      totalRaces: totalRaces,
+      completedRaces: completedRaces,
+      progressPercentage: totalRaces > 0 ? (completedRaces / totalRaces) * 100.0 : 0.0,
     );
   }
 
@@ -47,10 +51,7 @@ class CareerService {
       );
     }
 
-    final playerResults = allResults.where((r) => 
-      r.athleteName == career.player.name && 
-      r.athleteSurname == career.player.surname
-    ).toList();
+    final playerResults = allResults.where((r) => r.athlete.id == career.player.id).toList();
 
     final totalRaces = playerResults.length;
     final totalPoints = playerResults.fold(0, (sum, r) => sum + r.points);
@@ -89,28 +90,34 @@ class CareerService {
   }
 }
 
-/// Information about the next track
-class NextTrackInfo {
-  final Track track;
-  final bool isLastTrack;
+/// Information about the next race
+class NextRaceInfo {
+  final Race race;
+  final bool isLastRace;
+  final Season season;
+  final bool isLastSeason;
 
-  const NextTrackInfo({
-    required this.track,
-    required this.isLastTrack,
+  const NextRaceInfo({
+    required this.race,
+    required this.isLastRace,
+    required this.season,
+    required this.isLastSeason,
   });
 }
 
 /// Career progress information
 class CareerProgress {
-  final int totalTracks;
-  final int completedTracks;
-  final int currentTrackIndex;
+  final int totalSeasons;
+  final int currentSeasonIndex;
+  final int totalRaces;
+  final int completedRaces;
   final double progressPercentage;
 
   const CareerProgress({
-    required this.totalTracks,
-    required this.completedTracks,
-    required this.currentTrackIndex,
+    required this.totalSeasons,
+    required this.currentSeasonIndex,
+    required this.totalRaces,
+    required this.completedRaces,
     required this.progressPercentage,
   });
 }

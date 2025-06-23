@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'dart:math';
 import 'dart:async';
+import '../models/shooting_position.dart';
 import '../models/track.dart';
 import 'audio_bloc.dart';
 import '../models/athlete.dart';

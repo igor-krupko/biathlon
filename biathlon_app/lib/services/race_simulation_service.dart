@@ -6,13 +6,17 @@ import '../models/career.dart';
 import '../data/predefined_athletes.dart';
 import '../data/biathlon_points.dart';
 import '../blocs/race_bloc.dart';
+import '../models/athlete_race_result.dart';
+import '../models/race_simulator.dart';
+import '../models/race_points_result.dart';
+import '../models/race.dart';
 
 class RaceSimulationService {
   final Random _random = Random();
 
-  /// Simulates all competitors for a given track
-  Future<List<AthleteRaceResult>> simulateCompetitors(Track track) async {
-    final competitors = _generateCompetitors();
+  /// Simulates all competitors for a given track and year
+  Future<List<AthleteRaceResult>> simulateCompetitors(Track track, int year) async {
+    final competitors = _generateCompetitors(year);
     return competitors.map((a) => RaceSimulator.simulate(
       athlete: a,
       track: track,
@@ -37,10 +41,10 @@ class RaceSimulationService {
       
       // Add shooting penalties
       final shootingMisses = <int>[];
-      int segsPerLap = (currentState.track.lapDistance / 100).ceil();
+      int segsPerLap = (currentState.race.track.lapDistance / 100).ceil();
       int segDone = 0;
       int shootingIdx = 0;
-      for (int lap = 0; lap < currentState.track.laps; lap++) {
+      for (int lap = 0; lap < currentState.race.track.laps; lap++) {
         for (int s = 0; s < segsPerLap; s++) {
           if (++segDone >= currentSegment) break;
         }
@@ -82,7 +86,7 @@ class RaceSimulationService {
   }
 
   /// Calculates final race results
-  FinalRaceResults calculateFinalResults(RaceInProgress currentState) {
+  FinalRaceResults calculateFinalResults(RaceInProgress currentState, Race race) {
     // Add player result to all results
     final playerResult = AthleteRaceResult(
       athlete: currentState.player,
@@ -99,7 +103,7 @@ class RaceSimulationService {
     final playerPlace = playerIndex + 1;
     
     // Calculate race results
-    final pointsResults = _calculateRaceResults(currentState.track, allResults);
+    final pointsResults = _calculateRaceResults(race, allResults);
     
     return FinalRaceResults(
       allResults: allResults,
@@ -108,8 +112,13 @@ class RaceSimulationService {
     );
   }
 
-  List<Athlete> _generateCompetitors() {
-    final competitors = List<Athlete>.from(predefinedAthletes);
+  List<Athlete> _generateCompetitors(int year) {
+    final competitors = predefinedAthletes.where((athlete) {
+      final stats = athlete.seasonStats;
+      if (stats == null) return false;
+      final season = stats[year];
+      return season != null && season.isActive;
+    }).toList();
     competitors.shuffle(_random);
     return competitors;
   }
@@ -119,9 +128,9 @@ class RaceSimulationService {
     double sum = 0;
     int seg = 0;
     int shoot = 0;
-    final segmentsInLap = (state.track.lapDistance / 100).ceil();
+    final segmentsInLap = (state.race.track.lapDistance / 100).ceil();
     
-    for (int lap = 0; lap < state.track.laps; lap++) {
+    for (int lap = 0; lap < state.race.track.laps; lap++) {
       for (int s = 0; s < segmentsInLap; s++) {
         if (seg < state.segmentTimes.length) {
           sum += state.segmentTimes[seg++];
@@ -136,8 +145,8 @@ class RaceSimulationService {
     return result;
   }
 
-  List<RacePointsResult> _calculateRaceResults(Track track, List<AthleteRaceResult> allResults) {
-    final isMass = track.type.toString().contains('mass');
+  List<RacePointsResult> _calculateRaceResults(Race race, List<AthleteRaceResult> allResults) {
+    final isMass = race.track.type.toString().contains('mass');
     final pointsTable = isMass ? massStartPoints : usualRacePoints;
     
     return allResults.asMap().entries.map((entry) {
@@ -146,13 +155,11 @@ class RaceSimulationService {
       final points = entry.key < pointsTable.length ? pointsTable[entry.key] : 0;
       
       return RacePointsResult(
-        track: track,
+        race: race,
         place: place,
         points: points,
-        type: track.type.toString().split('.').last,
-        athleteName: athlete.name,
-        athleteSurname: athlete.surname,
-        athleteCountry: athlete.country,
+        type: race.track.type.toString().split('.').last,
+        athlete: athlete,
       );
     }).toList();
   }

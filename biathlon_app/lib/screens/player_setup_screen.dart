@@ -50,12 +50,14 @@ class _PlayerSetupScreenState extends State<PlayerSetupScreen> {
   void _startCareer() {
     if (_formKey.currentState!.validate()) {
       final player = Athlete(
+        id: -1,
         name: _nameController.text,
         surname: _surnameController.text,
         country: _selectedCountry,
         speed: 70,
         shootingDown: 70,
         shootingStanding: 70,
+        seasonStats: null,
         money: 0,
       );
       

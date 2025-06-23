@@ -1,5 +1,6 @@
 import '../models/career.dart';
 import '../models/athlete.dart';
+import '../models/race_points_result.dart';
 
 abstract class CareerRepository {
   Future<Career> createCareer(Athlete player);

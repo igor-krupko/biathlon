@@ -1,12 +1,17 @@
+import 'package:biathlon_app/models/race_points_result.dart';
+
 import '../models/career.dart';
+import '../models/athlete.dart';
 
 /// Service responsible for calculating and processing points data
 class PointsService {
   /// Calculate points data from career results
   PointsCalculationResult calculatePoints(Career career) {
-    final races = career.allRacesResults.expand((x) => x).toList();
-    
-    if (races.isEmpty) {
+    // Only include results from the current season
+    final races = career.currentSeason.races;
+    final raceIds = races.map((r) => r.id).toSet();
+    final allResults = career.allRacesResults.expand((x) => x).where((result) => raceIds.contains(result.race.id)).toList();
+    if (allResults.isEmpty) {
       return PointsCalculationResult(
         athletes: [],
         raceKeys: [],
@@ -15,23 +20,21 @@ class PointsService {
 
     // Group results by race
     final raceGroups = <String, List<RacePointsResult>>{};
-    for (final r in races) {
-      final key = '${r.track.name}|${r.type}';
+    for (final r in allResults) {
+      final key = '${r.race.id}';
       raceGroups.putIfAbsent(key, () => []).add(r);
     }
 
-    // Get unique race keys sorted by track name
+    // Get unique race keys sorted by race name
     final raceKeys = raceGroups.keys.toList()..sort();
 
     // Get all unique athletes
-    final athletes = <String, Map<String, dynamic>>{};
-    for (final r in races) {
-      final key = '${r.athleteName}|${r.athleteSurname}|${r.athleteCountry}';
+    final athletes = <int, Map<String, dynamic>>{};
+    for (final r in allResults) {
+      final key = r.athlete.id;
       if (!athletes.containsKey(key)) {
         athletes[key] = {
-          'name': r.athleteName,
-          'surname': r.athleteSurname,
-          'country': r.athleteCountry,
+          'athlete': r.athlete,
           'points': 0,
           'results': <RacePointsResult>[],
         };
@@ -42,17 +45,13 @@ class PointsService {
 
     // Convert to AthletePointsData objects
     final athleteDataList = athletes.values.map((athlete) {
-      final name = athlete['name'] as String;
-      final surname = athlete['surname'] as String;
-      final country = athlete['country'] as String;
+      final athleteObj = athlete['athlete'] as Athlete;
       final points = athlete['points'] as int;
       final resultsList = athlete['results'] as List<RacePointsResult>;
-      final resultsByRace = {for (var r in resultsList) '${r.track.name}|${r.type}': r};
+      final resultsByRace = {for (var r in resultsList) '${r.race.id}': r};
 
       return AthletePointsData(
-        name: name,
-        surname: surname,
-        country: country,
+        athlete: athleteObj,
         totalPoints: points,
         resultsByRace: resultsByRace,
       );
@@ -68,10 +67,8 @@ class PointsService {
   }
 
   /// Get athlete ranking position
-  int getAthleteRanking(List<AthletePointsData> athletes, String athleteName, String athleteSurname) {
-    final index = athletes.indexWhere((a) => 
-      a.name == athleteName && a.surname == athleteSurname
-    );
+  int getAthleteRanking(List<AthletePointsData> athletes, int athleteId) {
+    final index = athletes.indexWhere((a) => a.athlete.id == athleteId);
     return index >= 0 ? index + 1 : -1;
   }
 
@@ -99,16 +96,12 @@ class PointsCalculationResult {
 
 /// Data class for athlete points information
 class AthletePointsData {
-  final String name;
-  final String surname;
-  final String country;
+  final Athlete athlete;
   final int totalPoints;
   final Map<String, RacePointsResult> resultsByRace;
 
   AthletePointsData({
-    required this.name,
-    required this.surname,
-    required this.country,
+    required this.athlete,
     required this.totalPoints,
     required this.resultsByRace,
   });
@@ -118,10 +111,8 @@ class AthletePointsData {
       identical(this, other) ||
       other is AthletePointsData &&
           runtimeType == other.runtimeType &&
-          name == other.name &&
-          surname == other.surname &&
-          country == other.country;
+          athlete.id == other.athlete.id;
 
   @override
-  int get hashCode => name.hashCode ^ surname.hashCode ^ country.hashCode;
+  int get hashCode => athlete.id.hashCode;
 } 

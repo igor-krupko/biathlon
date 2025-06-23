@@ -113,32 +113,38 @@ class _TrainingScreenState extends State<TrainingScreen> {
     Athlete upgraded;
     if (stat == 'speed') {
       upgraded = Athlete(
+        id: player.id,
         name: player.name,
         surname: player.surname,
         country: player.country,
         speed: player.speed + 1,
         shootingDown: player.shootingDown,
         shootingStanding: player.shootingStanding,
+        seasonStats: null,
         money: player.money - cost,
       );
     } else if (stat == 'shootingDown') {
       upgraded = Athlete(
+        id: player.id,
         name: player.name,
         surname: player.surname,
         country: player.country,
         speed: player.speed,
         shootingDown: player.shootingDown + 1,
         shootingStanding: player.shootingStanding,
+        seasonStats: null,
         money: player.money - cost,
       );
     } else {
       upgraded = Athlete(
+        id: player.id,
         name: player.name,
         surname: player.surname,
         country: player.country,
         speed: player.speed,
         shootingDown: player.shootingDown,
         shootingStanding: player.shootingStanding + 1,
+        seasonStats: null,
         money: player.money - cost,
       );
     }
@@ -147,8 +153,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
       startDate: career.startDate,
       player: upgraded,
       isActive: career.isActive,
-      tracks: career.tracks,
-      currentTrackIndex: career.currentTrackIndex,
+      seasons: career.seasons,
+      currentSeasonIndex: career.currentSeasonIndex,
+      currentRaceIndex: career.currentRaceIndex,
     );
     // Copy race history
     updatedCareer.racePointsHistory.addAll(career.racePointsHistory);

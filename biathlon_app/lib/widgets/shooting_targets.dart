@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../models/shooting_position.dart';
 import '../models/track.dart';
 import '../blocs/shooting_bloc.dart';
 import '../blocs/audio_bloc.dart';

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../models/athlete_race_result.dart';
+import '../models/race.dart';
+import '../models/shooting_position.dart';
 import '../models/track.dart';
 import '../models/career.dart';
 import '../models/race_stats.dart';
@@ -16,12 +19,12 @@ import '../utils/race_utils.dart';
 import '../data/biathlon_points.dart';
 
 class RaceScreen extends StatefulWidget {
-  final Track track;
+  final Race race;
   final Career career;
 
   const RaceScreen({
     super.key,
-    required this.track,
+    required this.race,
     required this.career,
   });
 
@@ -50,7 +53,7 @@ class _RaceScreenState extends State<RaceScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => RaceBloc()..add(StartRace(widget.track, widget.career.player)),
+      create: (context) => RaceBloc()..add(StartRace(widget.race, widget.career.player)),
       child: BlocListener<RaceBloc, RaceState>(
         listener: (context, state) {
           if (state is RaceFinished) {
@@ -61,7 +64,7 @@ class _RaceScreenState extends State<RaceScreen> {
           builder: (context, state) {
             return Scaffold(
               appBar: AppBar(
-                title: Text("${widget.track.name} (${widget.track.country}), ${widget.track.type.toString()} - ${widget.track.totalDistance / 1000} km"),
+                title: Text("${widget.race.track.name} (${widget.race.track.country}), ${widget.race.track.type.toString()} - ${widget.race.track.totalDistance / 1000} km"),
               ),
               body: _buildBody(context, state),
             );
@@ -88,7 +91,7 @@ class _RaceScreenState extends State<RaceScreen> {
       children: [
         Positioned.fill(
           child: Image.asset(
-            state.track.backgroundAsset,
+            state.race.track.backgroundAsset,
             fit: BoxFit.cover,
           ),
         ),
@@ -97,7 +100,7 @@ class _RaceScreenState extends State<RaceScreen> {
               ? BlocProvider<shooting.ShootingBloc>(
                   create: (_) => shooting.ShootingBloc(player: state.player),
                   child: ShootingView(
-                    position: state.track.shootingPositions[state.currentShooting],
+                    position: state.race.track.shootingPositions[state.currentShooting],
                     onComplete: (hits) {
                       context.read<RaceBloc>().add(
                         CompleteShooting(
@@ -112,7 +115,7 @@ class _RaceScreenState extends State<RaceScreen> {
               : LapView(
                   lapNumber: state.currentLap + 1,
                   totalLaps: state.totalLaps,
-                  lapDistance: state.track.lapDistance,
+                  lapDistance: state.race.track.lapDistance,
                   onSegmentComplete: (progress) {
                     context.read<RaceBloc>().add(CompleteSegment(progress));
                   },
@@ -244,13 +247,11 @@ class _RaceScreenState extends State<RaceScreen> {
   void _handleRaceFinished(BuildContext context, RaceFinished state) {
     // Add race results to career
     context.read<CareerBloc>().add(AddRaceResult(state.raceResults.firstWhere(
-      (result) => result.athleteName == state.player.name,
+      (result) => result.athlete.id == state.player.id,
     )));
     context.read<CareerBloc>().add(AddFullRaceResults(state.raceResults));
-    
-    // Move to next track
-    context.read<CareerBloc>().add(MoveToNextTrack());
-    
+    // Move to next race
+    context.read<CareerBloc>().add(MoveToNextRace());
     // Show results dialog
     _showResultsDialog(context, state);
   }
@@ -467,12 +468,14 @@ class PodiumWidget extends StatelessWidget {
   AthleteRaceResult _dummyAthleteRaceResult() {
     return AthleteRaceResult(
       athlete: const Athlete(
+        id: 0,
         name: '-',
         surname: '',
         country: '',
         speed: 0,
         shootingDown: 0,
         shootingStanding: 0,
+        seasonStats: null
       ),
       segmentTimes: const [],
       shootingMisses: const [],

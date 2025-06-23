@@ -10,6 +10,7 @@ import '../screens/race_screen.dart';
 import '../screens/points_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/training_screen.dart';
+import '../models/career.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -28,7 +29,14 @@ class AppRouter {
       GoRoute(
         path: '/career-details',
         name: 'career-details',
-        builder: (context, state) => const CareerDetailsScreenWrapper(),
+        builder: (context, state) {
+          final careerState = context.read<CareerBloc>().state;
+          int seasonIndex = 0;
+          if (careerState is CareerActive) {
+            seasonIndex = careerState.career.currentSeasonIndex;
+          }
+          return CareerDetailsScreenWrapper(key: ValueKey(seasonIndex));
+        },
       ),
       GoRoute(
         path: '/race',
@@ -66,7 +74,7 @@ class CareerDetailsScreenWrapper extends StatelessWidget {
     return BlocBuilder<CareerBloc, CareerState>(
       builder: (context, state) {
         if (state is CareerActive) {
-          return CareerDetailsScreen(career: state.career);
+          return const CareerDetailsScreen();
         } else {
           return const Scaffold(
             body: Center(child: Text('No active career found')),
@@ -84,11 +92,19 @@ class RaceScreenWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<CareerBloc, CareerState>(
       builder: (context, state) {
-        if (state is CareerActive && state.career.currentTrack != null) {
-          return RaceScreen(
-            track: state.career.currentTrack!,
-            career: state.career,
-          );
+        if (state is CareerActive) {
+          final career = state.career;
+          final race = career.currentRace;
+          if (race != null) {
+            return RaceScreen(
+              race: race,
+              career: career,
+            );
+          } else {
+            return const Scaffold(
+              body: Center(child: Text('No active race found')),
+            );
+          }
         } else {
           return const Scaffold(
             body: Center(child: Text('No active race found')),
@@ -107,16 +123,13 @@ class PointsScreenWrapper extends StatefulWidget {
 }
 
 class _PointsScreenWrapperState extends State<PointsScreenWrapper> {
-  @override
-  void initState() {
-    super.initState();
-    // Trigger loading of points data when the screen is accessed
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final careerState = context.read<CareerBloc>().state;
-      if (careerState is CareerActive) {
-        context.read<PointsBloc>().add(LoadPoints(careerState.career));
-      }
-    });
+  Career? _lastCareer;
+
+  void _maybeLoadPoints(Career career) {
+    if (_lastCareer != career) {
+      _lastCareer = career;
+      context.read<PointsBloc>().add(LoadPoints(career));
+    }
   }
 
   @override
@@ -124,6 +137,7 @@ class _PointsScreenWrapperState extends State<PointsScreenWrapper> {
     return BlocBuilder<CareerBloc, CareerState>(
       builder: (context, careerState) {
         if (careerState is CareerActive) {
+          _maybeLoadPoints(careerState.career);
           return const PointsScreen();
         } else {
           return const Scaffold(

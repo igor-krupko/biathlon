@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../models/career.dart';
 import '../models/athlete.dart';
+import '../models/race_points_result.dart';
 import '../repositories/career_repository.dart';
 import 'base_bloc.dart';
 
@@ -28,9 +29,9 @@ class StopCareer extends CareerEvent {}
 
 class ContinueCareer extends CareerEvent {}
 
-class MoveToNextTrack extends CareerEvent {}
+class MoveToNextRace extends CareerEvent {}
 
-class MoveToPreviousTrack extends CareerEvent {}
+class MoveToNextSeason extends CareerEvent {}
 
 class AddRaceResult extends CareerEvent {
   final RacePointsResult result;
@@ -100,8 +101,8 @@ class CareerBloc extends BaseBloc<CareerEvent, CareerState> {
     on<LoadCareer>(_onLoadCareer);
     on<StopCareer>(_onStopCareer);
     on<ContinueCareer>(_onContinueCareer);
-    on<MoveToNextTrack>(_onMoveToNextTrack);
-    on<MoveToPreviousTrack>(_onMoveToPreviousTrack);
+    on<MoveToNextRace>(_onMoveToNextRace);
+    on<MoveToNextSeason>(_onMoveToNextSeason);
     on<AddRaceResult>(_onAddRaceResult);
     on<AddFullRaceResults>(_onAddFullRaceResults);
   }
@@ -166,31 +167,29 @@ class CareerBloc extends BaseBloc<CareerEvent, CareerState> {
     );
   }
 
-  Future<void> _onMoveToNextTrack(MoveToNextTrack event, Emitter<CareerState> emit) async {
+  Future<void> _onMoveToNextRace(MoveToNextRace event, Emitter<CareerState> emit) async {
     final currentCareer = castState<CareerActive>()?.career;
     if (currentCareer == null) return;
-
     await safeAsync(
       () async {
-        currentCareer.moveToNextTrack();
+        currentCareer.moveToNextRace();
         await _repository.saveCareer(currentCareer);
         emit(CareerActive(currentCareer));
       },
-      (error) => emit(CareerError('Failed to move to next track: $error')),
+      (error) => emit(CareerError('Failed to move to next race: $error')),
     );
   }
 
-  Future<void> _onMoveToPreviousTrack(MoveToPreviousTrack event, Emitter<CareerState> emit) async {
+  Future<void> _onMoveToNextSeason(MoveToNextSeason event, Emitter<CareerState> emit) async {
     final currentCareer = castState<CareerActive>()?.career;
     if (currentCareer == null) return;
-
     await safeAsync(
       () async {
-        currentCareer.moveToPreviousTrack();
+        currentCareer.moveToNextSeason();
         await _repository.saveCareer(currentCareer);
-        emit(CareerActive(currentCareer));
+        emit(CareerActive(currentCareer.copyWith()));
       },
-      (error) => emit(CareerError('Failed to move to previous track: $error')),
+      (error) => emit(CareerError('Failed to move to next season: $error')),
     );
   }
 
@@ -202,7 +201,7 @@ class CareerBloc extends BaseBloc<CareerEvent, CareerState> {
       () async {
         await _repository.addRaceResult(currentCareer, event.result);
         // Add money to player: 100$ per point
-        if (event.result.athleteName == currentCareer.player.name && event.result.athleteSurname == currentCareer.player.surname) {
+        if (event.result.athlete.id == currentCareer.player.id) {
           currentCareer.addMoneyToPlayer(event.result.points * 1000000000);
         }
         emit(CareerActive(currentCareer));

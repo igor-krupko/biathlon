@@ -2,31 +2,16 @@ import 'track.dart';
 import '../data/predefined_tracks.dart';
 import 'dart:math';
 import 'athlete.dart';
-
-class RacePointsResult {
-  final Track track;
-  final int place;
-  final int points;
-  final String type;
-  final String athleteName;
-  final String athleteSurname;
-  final String athleteCountry;
-  RacePointsResult({
-    required this.track,
-    required this.place,
-    required this.points,
-    required this.type,
-    required this.athleteName,
-    required this.athleteSurname,
-    required this.athleteCountry,
-  });
-}
+import 'race_points_result.dart';
+import 'season.dart';
+import 'race.dart';
 
 class Career {
   final DateTime startDate;
   bool isActive;
-  final List<Track> tracks;
-  int currentTrackIndex;
+  final List<Season> seasons;
+  int currentSeasonIndex;
+  int currentRaceIndex;
   final List<RacePointsResult> racePointsHistory = [];
   final List<List<RacePointsResult>> allRacesResults = [];
   Athlete player;
@@ -35,24 +20,63 @@ class Career {
     required this.startDate,
     required this.player,
     this.isActive = true,
-    List<Track>? tracks,
-    this.currentTrackIndex = 0,
-  }) : tracks = tracks ?? _generateTracks();
+    List<Season>? seasons,
+    this.currentSeasonIndex = 0,
+    this.currentRaceIndex = 0,
+  }) : seasons = seasons ?? _generateSeasons();
 
-  static List<Track> _generateTracks() {
+  static List<Season> _generateSeasons() {
     final random = Random();
-    final List<Track> selectedTracks = [];
-    final List<Track> availableTracks = List.from(predefinedTracks);
-    
-    // Shuffle the available tracks
-    availableTracks.shuffle(random);
-    
-    // Select 20 tracks
-    for (int i = 0; i < 20 && i < availableTracks.length; i++) {
-      selectedTracks.add(availableTracks[i]);
+    final List<Season> generatedSeasons = [];
+    final List<int> years = List.generate(25, (i) => 1999 + i);
+    int raceId = 1;
+    for (int i = 0; i < years.length; i++) {
+      final year = years[i];
+      final tracks = List<Track>.from(predefinedTracks);
+      tracks.shuffle(random);
+      final races = List.generate(2, (j) => Race(
+        id: raceId++,
+        date: DateTime(year, 1, j + 1),
+        track: tracks[j],
+      ));
+      generatedSeasons.add(Season(
+        id: i + 1,
+        year: year,
+        name: 'Season $year',
+        races: races,
+      ));
     }
-    
-    return selectedTracks;
+    return generatedSeasons;
+  }
+
+  Season get currentSeason => seasons[currentSeasonIndex];
+  Race? get currentRace =>
+    currentRaceIndex < currentSeason.races.length
+      ? currentSeason.races[currentRaceIndex]
+      : null;
+
+  bool hasNextRace() {
+    return currentRaceIndex < currentSeason.races.length - 1;
+  }
+
+  bool hasNextSeason() {
+    return currentSeasonIndex < seasons.length - 1;
+  }
+
+  void moveToNextRace() {
+    if (hasNextRace()) {
+      currentRaceIndex++;
+    } else if (currentRaceIndex == currentSeason.races.length - 1) {
+      // After the last race, increment to mark season as ended
+      currentRaceIndex++;
+    }
+  }
+
+  void moveToNextSeason() {
+    if (hasNextSeason()) {
+      currentSeasonIndex++;
+      currentRaceIndex = 0;
+    }
   }
 
   void stopCareer() {
@@ -63,26 +87,25 @@ class Career {
     isActive = true;
   }
 
-  Track? get currentTrack => tracks.isNotEmpty ? tracks[currentTrackIndex] : null;
+  int get playerMoney => player.money;
 
-  bool moveToNextTrack() {
-    if (currentTrackIndex < tracks.length - 1) {
-      currentTrackIndex++;
-      return true;
-    }
-    return false;
-  }
-
-  bool moveToPreviousTrack() {
-    if (currentTrackIndex > 0) {
-      currentTrackIndex--;
-      return true;
-    }
-    return false;
-  }
-
-  bool hasNextTrack() {
-    return currentTrackIndex < tracks.length - 1;
+  void addMoneyToPlayer(int amount) {
+    // Create a new Athlete with updated money
+    final updatedPlayer = Athlete(
+      id: player.id,
+      name: player.name,
+      surname: player.surname,
+      country: player.country,
+      speed: player.speed,
+      shootingDown: player.shootingDown,
+      shootingStanding: player.shootingStanding,
+      money: player.money + amount,
+      seasonStats: null,
+    );
+    // This is a workaround since player is final; in a real app, refactor to allow updating player
+    // ignore: invalid_use_of_visible_for_testing_member, invalid_use_of_protected_member
+    // ignore: prefer_final_fields
+    player = updatedPlayer;
   }
 
   void addRacePointsResult(RacePointsResult result) {
@@ -93,22 +116,30 @@ class Career {
     allRacesResults.add(results);
   }
 
-  int get playerMoney => player.money;
+  bool isSeasonEnded() {
+    return currentRaceIndex >= currentSeason.races.length;
+  }
 
-  void addMoneyToPlayer(int amount) {
-    // Create a new Athlete with updated money
-    final updatedPlayer = Athlete(
-      name: player.name,
-      surname: player.surname,
-      country: player.country,
-      speed: player.speed,
-      shootingDown: player.shootingDown,
-      shootingStanding: player.shootingStanding,
-      money: player.money + amount,
+  Career copyWith({
+    DateTime? startDate,
+    Athlete? player,
+    bool? isActive,
+    List<Season>? seasons,
+    int? currentSeasonIndex,
+    int? currentRaceIndex,
+    List<RacePointsResult>? racePointsHistory,
+    List<List<RacePointsResult>>? allRacesResults,
+  }) {
+    final newCareer = Career(
+      startDate: startDate ?? this.startDate,
+      player: player ?? this.player,
+      isActive: isActive ?? this.isActive,
+      seasons: seasons ?? List<Season>.from(this.seasons),
+      currentSeasonIndex: currentSeasonIndex ?? this.currentSeasonIndex,
+      currentRaceIndex: currentRaceIndex ?? this.currentRaceIndex,
     );
-    // This is a workaround since player is final; in a real app, refactor to allow updating player
-    // ignore: invalid_use_of_visible_for_testing_member, invalid_use_of_protected_member
-    // ignore: prefer_final_fields
-    player = updatedPlayer;
+    newCareer.racePointsHistory.addAll(racePointsHistory ?? this.racePointsHistory);
+    newCareer.allRacesResults.addAll(allRacesResults ?? this.allRacesResults);
+    return newCareer;
   }
 } 
