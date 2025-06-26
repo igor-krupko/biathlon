@@ -5,6 +5,7 @@ import '../models/career.dart';
 import '../blocs/career_bloc.dart';
 import '../models/season.dart';
 import '../models/race.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class CareerDetailsScreen extends StatelessWidget {
   const CareerDetailsScreen({super.key});
@@ -52,6 +53,15 @@ class CareerDetailsScreen extends StatelessWidget {
                     Text('No upcoming race', style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: career.seasonRating != null
+                  ? TShirtWidget(place: career.seasonRating!)
+                  : const SizedBox.shrink(),
             ),
           ),
           Center(
@@ -103,6 +113,18 @@ class CareerDetailsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
+                      'Date: 	${currentRace.date.toLocal().toString().split(' ')[0]}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    Text(
+                      currentRace.tournament == Tournament.worldCup
+                          ? 'Stage ${currentRace.stage} of World Cup'
+                          : currentRace.tournament == Tournament.wc
+                              ? 'World Championship'
+                              : 'Olympics',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    Text(
                       '${currentRace.track.type.toString().split('.').last} - ${currentRace.track.totalDistance}m',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
@@ -125,9 +147,23 @@ class CareerDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () {
+                    context.go('/athletes');
+                  },
+                  child: const Text('Athletes'),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
                     context.go('/training');
                   },
                   child: const Text('Training'),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    context.go('/seasons');
+                  },
+                  child: const Text('Seasons'),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -141,6 +177,58 @@ class CareerDetailsScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class TShirtWidget extends StatelessWidget {
+  final int place;
+  const TShirtWidget({super.key, required this.place});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isFirst = place == 1;
+    final Color shirtColor = isFirst ? Colors.yellow : Colors.orangeAccent;
+    // SVG string for the T-shirt icon (from user)
+    const String tshirtSvg = '''<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M256 32L32 112V176H96V464H416V176H480V112L256 32Z" fill="currentColor"/></svg>''';
+    return Column(
+      children: [
+        SizedBox(
+          width: 160,
+          height: 180,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SvgPicture.string(
+                tshirtSvg,
+                color: shirtColor,
+                width: 140,
+                height: 160,
+              ),
+              Positioned(
+                bottom: 60,
+                child: Text(
+                  '#$place',
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: isFirst ? Colors.deepOrange : Colors.white,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 6,
+                        color: Colors.black.withOpacity(0.2),
+                        offset: const Offset(2, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text('Your Place in Season', style: Theme.of(context).textTheme.titleLarge),
+      ],
     );
   }
 } 

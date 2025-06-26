@@ -19,6 +19,7 @@ class RaceSimulationService {
     final competitors = _generateCompetitors(year);
     return competitors.map((a) => RaceSimulator.simulate(
       athlete: a,
+      year: year,
       track: track,
       random: Random(_random.nextInt(100000)),
     )).toList();

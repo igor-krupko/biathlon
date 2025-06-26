@@ -199,11 +199,9 @@ class CareerBloc extends BaseBloc<CareerEvent, CareerState> {
 
     await safeAsync(
       () async {
-        await _repository.addRaceResult(currentCareer, event.result);
-        // Add money to player: 100$ per point
-        if (event.result.athlete.id == currentCareer.player.id) {
-          currentCareer.addMoneyToPlayer(event.result.points * 1000000000);
-        }
+        currentCareer.addRacePointsResult(event.result);
+        currentCareer.updateSeasonRating();
+        await _repository.saveCareer(currentCareer);
         emit(CareerActive(currentCareer));
       },
       (error) => emit(CareerError('Failed to add race result: $error')),
@@ -216,7 +214,9 @@ class CareerBloc extends BaseBloc<CareerEvent, CareerState> {
 
     await safeAsync(
       () async {
-        await _repository.addFullRaceResults(currentCareer, event.results);
+        currentCareer.addFullRaceResults(event.results);
+        currentCareer.updateSeasonRating();
+        await _repository.saveCareer(currentCareer);
         emit(CareerActive(currentCareer));
       },
       (error) => emit(CareerError('Failed to add full race results: $error')),

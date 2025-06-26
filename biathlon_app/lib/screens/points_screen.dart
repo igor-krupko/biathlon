@@ -5,29 +5,50 @@ import '../blocs/points_bloc.dart';
 import '../utils/race_utils.dart';
 import '../blocs/career_bloc.dart';
 import '../models/race_points_result.dart';
+import '../models/track_type.dart';
 
 class PointsScreen extends StatelessWidget {
   const PointsScreen({super.key});
 
+  static const List<Tab> _tabs = [
+    Tab(text: 'Total'),
+    Tab(text: 'Sprint'),
+    Tab(text: 'Pursuit'),
+    Tab(text: 'Individual'),
+    Tab(text: 'Mass'),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PointsBloc, PointsState>(
-      builder: (context, state) {
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Points'),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.go('/career-details'),
+    return DefaultTabController(
+      length: _tabs.length,
+      child: BlocBuilder<PointsBloc, PointsState>(
+        builder: (context, state) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Points'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.go('/career-details'),
+              ),
+              bottom: const TabBar(tabs: _tabs),
             ),
-          ),
-          body: _buildBody(context, state),
-        );
-      },
+            body: TabBarView(
+              children: [
+                _buildBody(context, state, null), // Total
+                _buildBody(context, state, TrackType.sprint),
+                _buildBody(context, state, TrackType.pursuit),
+                _buildBody(context, state, TrackType.individual),
+                _buildBody(context, state, TrackType.mass),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildBody(BuildContext context, PointsState state) {
+  Widget _buildBody(BuildContext context, PointsState state, TrackType? filterType) {
     if (state is PointsLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -42,6 +63,15 @@ class PointsScreen extends StatelessWidget {
 
       if (state.athletes.isEmpty) {
         return const Center(child: Text('No races completed yet'));
+      }
+
+      // Filter raceKeys by type if needed
+      List<String> filteredRaceKeys = state.raceKeys;
+      if (filterType != null) {
+        filteredRaceKeys = state.raceKeys.where((rk) {
+          final result = state.athletes.first.resultsByRace[rk];
+          return result != null && result.race.track.type == filterType;
+        }).toList();
       }
 
       return SingleChildScrollView(
@@ -65,9 +95,8 @@ class PointsScreen extends StatelessWidget {
                   const DataColumn(label: Text('#')),
                   const DataColumn(label: Text('Athlete')),
                   const DataColumn(label: Text('Country')),
-                  const DataColumn(label: Text('Total')),
-                  ...state.raceKeys.map((rk) {
-                    // Try to get the race object from the first athlete's results
+                  DataColumn(label: Text(filterType == null ? 'Total' : filterType.name[0].toUpperCase() + filterType.name.substring(1))),
+                  ...filteredRaceKeys.map((rk) {
                     RacePointsResult? result;
                     if (state.athletes.isNotEmpty) {
                       result = state.athletes.first.resultsByRace[rk];
@@ -81,6 +110,15 @@ class PointsScreen extends StatelessWidget {
                 rows: List.generate(state.athletes.length, (i) {
                   final athlete = state.athletes[i];
                   final flag = RaceUtils.countryToFlag(athlete.athlete.country);
+                  // Filter resultsByRace for this athlete
+                  final filteredResults = filterType == null
+                    ? athlete.resultsByRace
+                    : Map.fromEntries(
+                        athlete.resultsByRace.entries.where((e) => e.value.race.track.type == filterType),
+                      );
+                  final points = filterType == null
+                    ? athlete.totalPoints
+                    : filteredResults.values.fold(0, (sum, r) => sum + r.points);
                   return DataRow(cells: [
                     DataCell(Text('${i + 1}')),
                     DataCell(Text('${athlete.athlete.name} ${athlete.athlete.surname}')),
@@ -91,9 +129,9 @@ class PointsScreen extends StatelessWidget {
                         Text(athlete.athlete.country),
                       ],
                     )),
-                    DataCell(Text(athlete.totalPoints.toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
-                    ...state.raceKeys.map((rk) {
-                      final result = athlete.resultsByRace[rk];
+                    DataCell(Text(points.toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
+                    ...filteredRaceKeys.map((rk) {
+                      final result = filteredResults[rk];
                       if (result == null) return const DataCell(Text('-'));
                       Color? bg;
                       if (result.place == 1)

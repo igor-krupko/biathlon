@@ -5,6 +5,32 @@ import 'athlete.dart';
 import 'race_points_result.dart';
 import 'season.dart';
 import 'race.dart';
+import '../data/races_by_season/races_1999.dart' as races_1999;
+import '../data/races_by_season/races_2000.dart' as races_2000;
+import '../data/races_by_season/races_2001.dart' as races_2001;
+import '../data/races_by_season/races_2002.dart' as races_2002;
+import '../data/races_by_season/races_2003.dart' as races_2003;
+import '../data/races_by_season/races_2004.dart' as races_2004;
+import '../data/races_by_season/races_2005.dart' as races_2005;
+import '../data/races_by_season/races_2006.dart' as races_2006;
+import '../data/races_by_season/races_2007.dart' as races_2007;
+import '../data/races_by_season/races_2008.dart' as races_2008;
+import '../data/races_by_season/races_2009.dart' as races_2009;
+import '../data/races_by_season/races_2010.dart' as races_2010;
+import '../data/races_by_season/races_2011.dart' as races_2011;
+import '../data/races_by_season/races_2012.dart' as races_2012;
+import '../data/races_by_season/races_2013.dart' as races_2013;
+import '../data/races_by_season/races_2014.dart' as races_2014;
+import '../data/races_by_season/races_2015.dart' as races_2015;
+import '../data/races_by_season/races_2016.dart' as races_2016;
+import '../data/races_by_season/races_2017.dart' as races_2017;
+import '../data/races_by_season/races_2018.dart' as races_2018;
+import '../data/races_by_season/races_2019.dart' as races_2019;
+import '../data/races_by_season/races_2020.dart' as races_2020;
+import '../data/races_by_season/races_2021.dart' as races_2021;
+import '../data/races_by_season/races_2022.dart' as races_2022;
+import '../data/races_by_season/races_2023.dart' as races_2023;
+import '../data/races_by_season/races_2024.dart' as races_2024;
 
 class Career {
   final DateTime startDate;
@@ -15,6 +41,7 @@ class Career {
   final List<RacePointsResult> racePointsHistory = [];
   final List<List<RacePointsResult>> allRacesResults = [];
   Athlete player;
+  int? seasonRating;
 
   Career({
     required this.startDate,
@@ -25,20 +52,71 @@ class Career {
     this.currentRaceIndex = 0,
   }) : seasons = seasons ?? _generateSeasons();
 
+  static List<Race> _loadRacesForYear(int year) {
+    switch (year) {
+      case 1999:
+        return races_1999.races1999;
+      case 2000:
+        return races_2000.races2000;
+      case 2001:
+        return races_2001.races2001;
+      case 2002:
+        return races_2002.races2002;
+      case 2003:
+        return races_2003.races2003;
+      case 2004:
+        return races_2004.races2004;
+      case 2005:
+        return races_2005.races2005;
+      case 2006:
+        return races_2006.races2006;
+      case 2007:
+        return races_2007.races2007;
+      case 2008:
+        return races_2008.races2008;
+      case 2009:
+        return races_2009.races2009;
+      case 2010:
+        return races_2010.races2010;
+      case 2011:
+        return races_2011.races2011;
+      case 2012:
+        return races_2012.races2012;
+      case 2013:
+        return races_2013.races2013;
+      case 2014:
+        return races_2014.races2014;
+      case 2015:
+        return races_2015.races2015;
+      case 2016:
+        return races_2016.races2016;
+      case 2017:
+        return races_2017.races2017;
+      case 2018:
+        return races_2018.races2018;
+      case 2019:
+        return races_2019.races2019;
+      case 2020:
+        return races_2020.races2020;
+      case 2021:
+        return races_2021.races2021;
+      case 2022:
+        return races_2022.races2022;
+      case 2023:
+        return races_2023.races2023;
+      case 2024:
+        return races_2024.races2024;
+      default:
+        throw Exception('No race data for year: $year');
+    }
+  }
+
   static List<Season> _generateSeasons() {
-    final random = Random();
     final List<Season> generatedSeasons = [];
     final List<int> years = List.generate(25, (i) => 1999 + i);
-    int raceId = 1;
     for (int i = 0; i < years.length; i++) {
       final year = years[i];
-      final tracks = List<Track>.from(predefinedTracks);
-      tracks.shuffle(random);
-      final races = List.generate(2, (j) => Race(
-        id: raceId++,
-        date: DateTime(year, 1, j + 1),
-        track: tracks[j],
-      ));
+      final races = _loadRacesForYear(year);
       generatedSeasons.add(Season(
         id: i + 1,
         year: year,
@@ -70,12 +148,30 @@ class Career {
       // After the last race, increment to mark season as ended
       currentRaceIndex++;
     }
+    updateSeasonRating();
   }
 
   void moveToNextSeason() {
     if (hasNextSeason()) {
       currentSeasonIndex++;
       currentRaceIndex = 0;
+      seasonRating = null;
+      // Update player stats for the new season if available
+      final newYear = currentSeason.year;
+      final stats = player.seasonStats != null ? player.seasonStats![newYear] : null;
+      if (stats != null && stats.isActive) {
+        player = Athlete(
+          id: player.id,
+          name: player.name,
+          surname: player.surname,
+          country: player.country,
+          speed: stats.speed,
+          shootingDown: stats.shootingDown,
+          shootingStanding: stats.shootingStanding,
+          money: player.money,
+          seasonStats: player.seasonStats,
+        );
+      }
     }
   }
 
@@ -118,6 +214,22 @@ class Career {
 
   bool isSeasonEnded() {
     return currentRaceIndex >= currentSeason.races.length;
+  }
+
+  void updateSeasonRating() {
+    // Aggregate points for all athletes in the current season
+    final List<RacePointsResult> seasonResults = allRacesResults.expand((x) => x).where((r) => r.race.date.year == currentSeason.year).toList();
+    final Map<String, int> athletePoints = {};
+    for (final result in seasonResults) {
+      final key = '${result.athlete.name}|${result.athlete.surname}|${result.athlete.country}';
+      athletePoints[key] = (athletePoints[key] ?? 0) + result.points;
+    }
+    // Sort athletes by points descending
+    final sorted = athletePoints.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final playerKey = '${player.name}|${player.surname}|${player.country}';
+    final place = sorted.indexWhere((e) => e.key == playerKey);
+    seasonRating = place >= 0 ? place + 1 : null;
   }
 
   Career copyWith({

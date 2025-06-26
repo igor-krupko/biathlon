@@ -10,6 +10,8 @@ import '../screens/race_screen.dart';
 import '../screens/points_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/training_screen.dart';
+import '../screens/athletes_screen.dart';
+import '../screens/seasons_screen.dart';
 import '../models/career.dart';
 
 class AppRouter {
@@ -60,6 +62,16 @@ class AppRouter {
         path: '/settings',
         name: 'settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/athletes',
+        name: 'athletes',
+        builder: (context, state) => const AthletesScreen(),
+      ),
+      GoRoute(
+        path: '/seasons',
+        name: 'seasons',
+        builder: (context, state) => const SeasonsScreenWrapper(),
       ),
     ],
   );
@@ -139,6 +151,25 @@ class _PointsScreenWrapperState extends State<PointsScreenWrapper> {
         if (careerState is CareerActive) {
           _maybeLoadPoints(careerState.career);
           return const PointsScreen();
+        } else {
+          return const Scaffold(
+            body: Center(child: Text('No active career found')),
+          );
+        }
+      },
+    );
+  }
+}
+
+class SeasonsScreenWrapper extends StatelessWidget {
+  const SeasonsScreenWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<CareerBloc, CareerState>(
+      builder: (context, state) {
+        if (state is CareerActive) {
+          return SeasonsScreen(career: state.career);
         } else {
           return const Scaffold(
             body: Center(child: Text('No active career found')),

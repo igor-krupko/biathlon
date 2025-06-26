@@ -1,6 +1,7 @@
 import '../models/career.dart';
 import '../models/athlete.dart';
 import '../models/race_points_result.dart';
+import '../services/athlete_loader.dart';
 
 abstract class CareerRepository {
   Future<Career> createCareer(Athlete player);
@@ -8,10 +9,16 @@ abstract class CareerRepository {
   Future<Career?> loadCareer();
   Future<void> addRaceResult(Career career, RacePointsResult result);
   Future<void> addFullRaceResults(Career career, List<RacePointsResult> results);
+  List<Athlete> getAllPredefinedAthletes();
 }
 
 class CareerRepositoryImpl implements CareerRepository {
   Career? _currentCareer;
+
+  /// Returns all predefined athletes dynamically loaded from yearly files
+  List<Athlete> getAllPredefinedAthletes() {
+    return loadAllPredefinedAthletes();
+  }
 
   @override
   Future<Career> createCareer(Athlete player) async {
