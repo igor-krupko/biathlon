@@ -10,6 +10,8 @@ import '../services/race_simulation_service.dart';
 import '../services/audio_service.dart';
 import '../services/settings_service.dart';
 import '../models/race.dart';
+import '../services/points_service.dart';
+import 'package:collection/collection.dart';
 
 // Events
 abstract class RaceEvent extends Equatable {
@@ -22,11 +24,12 @@ abstract class RaceEvent extends Equatable {
 class StartRace extends RaceEvent {
   final Race race;
   final Athlete player;
+  final List<List<RacePointsResult>>? seasonResults;
 
-  const StartRace(this.race, this.player);
+  const StartRace(this.race, this.player, this.seasonResults);
 
   @override
-  List<Object?> get props => [race, player];
+  List<Object?> get props => [race, player, seasonResults];
 }
 
 class CompleteSegment extends RaceEvent {
@@ -77,6 +80,7 @@ class RaceLoading extends RaceState {}
 class RaceInProgress extends RaceState {
   final Race race;
   final Athlete player;
+  final int? playerStartNumber;
   final int currentLap;
   final int totalLaps;
   final int currentShooting;
@@ -94,6 +98,7 @@ class RaceInProgress extends RaceState {
   const RaceInProgress({
     required this.race,
     required this.player,
+    required this.playerStartNumber,
     required this.currentLap,
     required this.totalLaps,
     required this.currentShooting,
@@ -131,6 +136,7 @@ class RaceInProgress extends RaceState {
   RaceInProgress copyWith({
     Race? race,
     Athlete? player,
+    int? playerStartNumber,
     int? currentLap,
     int? totalLaps,
     int? currentShooting,
@@ -148,6 +154,7 @@ class RaceInProgress extends RaceState {
     return RaceInProgress(
       race: race ?? this.race,
       player: player ?? this.player,
+      playerStartNumber: playerStartNumber ?? this.playerStartNumber,
       currentLap: currentLap ?? this.currentLap,
       totalLaps: totalLaps ?? this.totalLaps,
       currentShooting: currentShooting ?? this.currentShooting,
@@ -228,12 +235,53 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
     await _settingsService.initialize();
     await _audioService.initialize();
     
+    // Build athleteIdToStartNumber map
+    Map<int, int>? athleteIdToStartNumber;
+    final competitors = _simulationService.generateCompetitors(event.race.date.year);
+    final allAthletes = List<Athlete>.from(competitors);
+    if (!allAthletes.any((a) => a.id == event.player.id)) {
+      allAthletes.add(event.player);
+    }
+    // Use event.seasonResults to aggregate points for the current year
+    if (event.seasonResults != null && event.seasonResults!.isNotEmpty) {
+      // Flatten all results into a single list
+      final allResults = event.seasonResults!.expand((x) => x).toList();
+      // Only include results from the current year
+      final year = event.race.date.year;
+      final yearResults = allResults.where((r) => r.race.date.year == year).toList();
+      // Aggregate points by athlete id
+      final Map<int, int> athletePoints = {};
+      for (final r in yearResults) {
+        athletePoints[r.athlete.id] = (athletePoints[r.athlete.id] ?? 0) + r.points;
+      }
+      // Sort allAthletes by points descending, then by name as fallback
+      allAthletes.sort((a, b) {
+        final pB = athletePoints[b.id] ?? 0;
+        final pA = athletePoints[a.id] ?? 0;
+        if (pB != pA) return pB.compareTo(pA);
+        return (a.surname + a.name).compareTo(b.surname + b.name);
+      });
+      athleteIdToStartNumber = { for (int i = 0; i < allAthletes.length; i++) allAthletes[i].id: i + 1 };
+      print('athleteIdToStartNumber (by points):');
+      athleteIdToStartNumber.forEach((id, num) {
+        print('  id=\x1B[32m$id\x1B[0m => startNumber=$num');
+      });
+    } else {
+      // Assign randomly
+      allAthletes.shuffle();
+      athleteIdToStartNumber = { for (int i = 0; i < allAthletes.length; i++) allAthletes[i].id: i + 1 };
+      print('athleteIdToStartNumber (random):');
+      athleteIdToStartNumber.forEach((id, num) {
+        print('  id=\x1B[32m$id\x1B[0m => startNumber=$num');
+      });
+    }
     // Simulate competitors using the service
-    final allSimulatedResults = await _simulationService.simulateCompetitors(event.race.track, event.race.date.year);
+    final allSimulatedResults = await _simulationService.simulateCompetitors(event.race.track, event.race.date.year, athleteIdToStartNumber);
 
     emit(RaceInProgress(
       race: event.race,
       player: event.player,
+      playerStartNumber: athleteIdToStartNumber?[event.player.id],
       currentLap: 0,
       totalLaps: event.race.track.laps,
       currentShooting: 0,

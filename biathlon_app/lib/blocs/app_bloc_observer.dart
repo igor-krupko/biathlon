@@ -14,7 +14,7 @@ class AppBlocObserver extends BlocObserver {
   void onChange(BlocBase bloc, Change change) {
     super.onChange(bloc, change);
     if (kDebugMode) {
-      print('onChange -- ${bloc.runtimeType}, $change');
+      //print('onChange -- ${bloc.runtimeType}, $change');
     }
   }
 

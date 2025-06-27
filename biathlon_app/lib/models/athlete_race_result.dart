@@ -6,6 +6,7 @@ class AthleteRaceResult {
   final List<int> shootingMisses;
   final List<double> cumulativeTimes; // after each segment
   final double totalTime;
+  final int? startNumber;
 
   AthleteRaceResult({
     required this.athlete,
@@ -13,5 +14,6 @@ class AthleteRaceResult {
     required this.shootingMisses,
     required this.cumulativeTimes,
     required this.totalTime,
+    this.startNumber,
   });
 } 

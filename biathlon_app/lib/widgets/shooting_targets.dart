@@ -50,7 +50,7 @@ class _ShootingTargetsState extends State<ShootingTargets> with SingleTickerProv
     super.dispose();
   }
 
-  void _handleShoot(int index, Offset position) {
+  void _handleShoot(int index, Offset position, Offset swayOffset, Offset cursorPositionAtDown) {
     final state = context.read<ShootingBloc>().state;
     if (state is! ShootingInProgress) return;
 
@@ -60,7 +60,9 @@ class _ShootingTargetsState extends State<ShootingTargets> with SingleTickerProv
 
     final RenderBox targetBox = targetKeys[index].currentContext!.findRenderObject() as RenderBox;
     final targetCenter = Offset(targetBox.size.width / 2, targetBox.size.height / 2);
-    final hitPosition = targetBox.globalToLocal(position);
+    // Use the crosshair's global position for hit calculation
+    final crosshairGlobalPosition = position + swayOffset;
+    final hitPosition = targetBox.globalToLocal(crosshairGlobalPosition);
     
     // Calculate if hit is within target
     final hitDistance = (hitPosition - targetCenter).distance;
@@ -71,14 +73,14 @@ class _ShootingTargetsState extends State<ShootingTargets> with SingleTickerProv
     context.read<AudioBloc>().add(PlayShootingSound());
 
     if (!isHit) {
-      // Add a small delay before the flash animation to match audio timing
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          _flashController.forward().then((_) {
-            _flashController.reverse();
-          });
-        }
-      });
+      // // Add a small delay before the flash animation to match audio timing
+      // Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _flashController.forward().then((_) {
+          _flashController.reverse();
+        });
+      }
+      //});
     }
 
     // Send the hit result and position to the BLoC
@@ -158,42 +160,46 @@ class _ShootingTargetsState extends State<ShootingTargets> with SingleTickerProv
                   });
                 },
                 onPointerDown: (event) {
+                  final state = context.read<ShootingBloc>().state;
+                  final capturedSwayOffset = state is ShootingInProgress ? state.swayOffset : Offset.zero;
+                  final capturedCursorPosition = event.localPosition;
                   setState(() {
-                    cursorPosition = event.localPosition;
+                    cursorPosition = capturedCursorPosition;
                   });
                   bool shotHandled = false;
-                  
-                  // Check if the shot is within any target area
-                  for (int i = 0; i < 5; i++) {
-                    if (i >= state.currentTarget) {
-                      final RenderBox? targetBox = targetKeys[i].currentContext?.findRenderObject() as RenderBox?;
-                      if (targetBox != null) {
-                        final targetPosition = targetBox.localToGlobal(Offset.zero);
-                        final targetSize = targetBox.size;
-                        // Use a slightly larger area for easier targeting
-                        final expandedSize = Size(targetSize.width + 20, targetSize.height + 20);
-                        final expandedPosition = Offset(
-                          targetPosition.dx - 10,
-                          targetPosition.dy - 10,
-                        );
-                        
-                        if (event.position.dx >= expandedPosition.dx &&
-                            event.position.dx <= expandedPosition.dx + expandedSize.width &&
-                            event.position.dy >= expandedPosition.dy &&
-                            event.position.dy <= expandedPosition.dy + expandedSize.height) {
-                          _handleShoot(i, event.position);
-                          shotHandled = true;
-                          break;
+                  // Only proceed if state is ShootingInProgress
+                  if (state is ShootingInProgress) {
+                    final shootingState = state;
+                    // Check if the shot is within any target area
+                    for (int i = 0; i < 5; i++) {
+                      if (i >= shootingState.currentTarget) {
+                        final RenderBox? targetBox = targetKeys[i].currentContext?.findRenderObject() as RenderBox?;
+                        if (targetBox != null) {
+                          final targetPosition = targetBox.localToGlobal(Offset.zero);
+                          final targetSize = targetBox.size;
+                          // Use a slightly larger area for easier targeting
+                          final expandedSize = Size(targetSize.width + 20, targetSize.height + 20);
+                          final expandedPosition = Offset(
+                            targetPosition.dx - 10,
+                            targetPosition.dy - 10,
+                          );
+                          if (event.position.dx >= expandedPosition.dx &&
+                              event.position.dx <= expandedPosition.dx + expandedSize.width &&
+                              event.position.dy >= expandedPosition.dy &&
+                              event.position.dy <= expandedPosition.dy + expandedSize.height) {
+                            _handleShoot(i, event.position, capturedSwayOffset, capturedCursorPosition);
+                            shotHandled = true;
+                            break;
+                          }
                         }
                       }
                     }
-                  }
-
-                  // If shot wasn't within any target area, count it as a miss on the current target
-                  if (!shotHandled && !state.isAnimating) {
-                    final currentTargetBox = targetKeys[state.currentTarget].currentContext?.findRenderObject() as RenderBox?;
-                    if (currentTargetBox != null) {
-                      _handleShoot(state.currentTarget, event.position);
+                    // If shot wasn't within any target area, count it as a miss on the current target
+                    if (!shotHandled && !shootingState.isAnimating) {
+                      final currentTargetBox = targetKeys[shootingState.currentTarget].currentContext?.findRenderObject() as RenderBox?;
+                      if (currentTargetBox != null) {
+                        _handleShoot(shootingState.currentTarget, event.position, capturedSwayOffset, capturedCursorPosition);
+                      }
                     }
                   }
                 },

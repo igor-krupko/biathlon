@@ -15,14 +15,25 @@ class RaceSimulationService {
   final Random _random = Random();
 
   /// Simulates all competitors for a given track and year
-  Future<List<AthleteRaceResult>> simulateCompetitors(Track track, int year) async {
-    final competitors = _generateCompetitors(year);
-    return competitors.map((a) => RaceSimulator.simulate(
-      athlete: a,
-      year: year,
-      track: track,
-      random: Random(_random.nextInt(100000)),
-    )).toList();
+  Future<List<AthleteRaceResult>> simulateCompetitors(Track track, int year, Map<int, int>? athleteIdToStartNumber) async {
+    final competitors = generateCompetitors(year);
+    return competitors.map((a) {
+      final result = RaceSimulator.simulate(
+        athlete: a,
+        year: year,
+        track: track,
+        random: Random(_random.nextInt(100000)),
+      );
+      final startNumber = athleteIdToStartNumber != null ? athleteIdToStartNumber[a.id] : null;
+      return AthleteRaceResult(
+        athlete: result.athlete,
+        segmentTimes: result.segmentTimes,
+        shootingMisses: result.shootingMisses,
+        cumulativeTimes: result.cumulativeTimes,
+        totalTime: result.totalTime,
+        startNumber: startNumber,
+      );
+    }).toList();
   }
 
   /// Updates the live leaderboard based on current race progress
@@ -56,23 +67,32 @@ class RaceSimulationService {
           cumTimes.add(sum);
         }
       }
+      // If the player has just finished shooting but hasn't started the next segment,
+      // add the next penalty for the simulated athlete as well.
+      if (currentState.shootingMisses.length > shootingMisses.length &&
+          shootingIdx < full.shootingMisses.length) {
+        shootingMisses.add(full.shootingMisses[shootingIdx++]);
+        sum += RaceStats.calculateShootingPenalty(shootingMisses.last);
+        cumTimes.add(sum);
+      }
       
       return AthleteRaceResult(
         athlete: full.athlete,
         segmentTimes: segTimes,
         shootingMisses: shootingMisses,
         cumulativeTimes: cumTimes,
+        startNumber: full.startNumber,
         totalTime: cumTimes.isNotEmpty ? cumTimes.last : 0,
       );
     }).toList();
     
-    // Add player's partial result
     final playerResult = AthleteRaceResult(
       athlete: playerAthlete,
       segmentTimes: List<double>.from(currentState.segmentTimes),
       shootingMisses: List<int>.from(currentState.shootingMisses),
       cumulativeTimes: _buildPlayerCumulativeTimes(currentState),
       totalTime: currentState.totalTime,
+      startNumber: currentState.playerStartNumber,
     );
     partialResults.add(playerResult);
     partialResults.sort((a, b) => a.totalTime.compareTo(b.totalTime));
@@ -113,7 +133,7 @@ class RaceSimulationService {
     );
   }
 
-  List<Athlete> _generateCompetitors(int year) {
+  List<Athlete> generateCompetitors(int year) {
     final competitors = predefinedAthletes.where((athlete) {
       final stats = athlete.seasonStats;
       if (stats == null) return false;

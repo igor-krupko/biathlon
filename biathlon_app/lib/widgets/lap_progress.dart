@@ -48,6 +48,9 @@ class _LapProgressState extends State<LapProgress> {
         if (state is LapProgressCompleted) {
           widget.onSegmentComplete(state.totalProgress);
         }
+        if (state is LapProgressInProgress && state.stoppedProgress != null && state.stoppedProgress! > 0.999 && !state.isAnimating) {
+          widget.onSegmentComplete(state.stoppedProgress!);
+        }
       },
       child: BlocBuilder<LapProgressBloc, LapProgressState>(
         builder: (context, state) {

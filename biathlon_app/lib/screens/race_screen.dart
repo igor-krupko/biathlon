@@ -1,3 +1,4 @@
+import 'package:biathlon_app/models/race_points_result.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import '../models/race_stats.dart';
 import '../models/athlete.dart';
 import '../widgets/shooting_targets.dart';
 import '../widgets/lap_progress.dart';
+import '../widgets/athlete_track_progress.dart';
 import '../blocs/career_bloc.dart';
 import '../blocs/race_bloc.dart';
 import '../blocs/shooting_bloc.dart' as shooting;
@@ -25,7 +27,7 @@ class RaceScreen extends StatefulWidget {
   const RaceScreen({
     super.key,
     required this.race,
-    required this.career,
+    required this.career
   });
 
   @override
@@ -33,27 +35,30 @@ class RaceScreen extends StatefulWidget {
 }
 
 class _RaceScreenState extends State<RaceScreen> {
+  AudioBloc? _audioBloc;
+
   @override
   void initState() {
     super.initState();
+    _audioBloc = context.read<AudioBloc>();
     _initializeAudio();
   }
 
   Future<void> _initializeAudio() async {
     // Start background ambience if enabled
-    context.read<AudioBloc>().add(PlayBackgroundAmbience());
+    _audioBloc?.add(PlayBackgroundAmbience());
   }
 
   @override
   void dispose() {
-    context.read<AudioBloc>().add(StopBackgroundAmbience());
+    _audioBloc?.add(StopBackgroundAmbience());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => RaceBloc()..add(StartRace(widget.race, widget.career.player)),
+      create: (context) => RaceBloc()..add(StartRace(widget.race, widget.career.player, widget.career.allRacesResults)),
       child: BlocListener<RaceBloc, RaceState>(
         listener: (context, state) {
           if (state is RaceFinished) {
@@ -95,24 +100,45 @@ class _RaceScreenState extends State<RaceScreen> {
             fit: BoxFit.cover,
           ),
         ),
-        Center(
-          child: state.isShooting
-              ? BlocProvider<shooting.ShootingBloc>(
-                  create: (_) => shooting.ShootingBloc(player: state.player),
-                  child: ShootingView(
-                    position: state.race.track.shootingPositions[state.currentShooting],
-                    onComplete: (hits) {
-                      context.read<RaceBloc>().add(
-                        CompleteShooting(
-                          state.currentShooting,
-                          hits.where((hit) => hit).length,
-                          hits.length,
-                        ),
-                      );
-                    },
+        if (state.isShooting)
+          BlocProvider<shooting.ShootingBloc>(
+            create: (_) => shooting.ShootingBloc(player: state.player),
+            child: ShootingView(
+              position: state.race.track.shootingPositions[state.currentShooting],
+              onComplete: (hits) {
+                context.read<RaceBloc>().add(
+                  CompleteShooting(
+                    state.currentShooting,
+                    hits.where((hit) => hit).length,
+                    hits.length,
                   ),
-                )
-              : LapView(
+                );
+              },
+            ),
+          )
+        else
+          Column(
+            children: [
+              if (state.segmentTimes.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: _buildLiveLeaderboard(context, state),
+                ),
+              SizedBox(
+                height: 300,
+                width: double.infinity,
+                child: AthleteTrackProgress(
+                  partialResults: state.partialResults,
+                  player: state.player,
+                  currentDistance: state.segmentTimes.isEmpty
+                      ? 0
+                      : state.segmentTimes.length * 100,
+                  segmentLength: (state.race.track.lapDistance / 100).ceilToDouble(),
+                  totalDistance: state.race.track.totalDistance,
+                ),
+              ),
+              Expanded(
+                child: LapView(
                   lapNumber: state.currentLap + 1,
                   totalLaps: state.totalLaps,
                   lapDistance: state.race.track.lapDistance,
@@ -120,26 +146,21 @@ class _RaceScreenState extends State<RaceScreen> {
                     context.read<RaceBloc>().add(CompleteSegment(progress));
                   },
                 ),
-        ),
+              ),
+            ],
+          ),
         // Cumulative time display
         Positioned(
           top: 16,
           right: 16,
           child: _buildTimeDisplay(state),
         ),
-        // Live leaderboard overlay
-        if (state.segmentTimes.isNotEmpty)
-          Positioned(
-            top: 16,
-            left: 16,
-            child: _buildLiveLeaderboard(context, state),
-          ),
       ],
     );
   }
 
   Widget _buildTimeDisplay(RaceInProgress state) {
-    final playerIdx = state.partialResults.indexWhere((r) => r.athlete.name == state.player.name);
+    final playerIdx = state.partialResults.indexWhere((r) => r.athlete.id == state.player.id);
     final player = playerIdx != -1 ? state.partialResults[playerIdx] : null;
     final leaderTime = state.partialResults.isNotEmpty ? state.partialResults.first.totalTime : 0.0;
     final playerTime = player?.totalTime ?? 0.0;
@@ -171,6 +192,7 @@ class _RaceScreenState extends State<RaceScreen> {
   }
 
   Widget _buildLiveLeaderboard(BuildContext context, RaceInProgress state) {
+    final top9 = state.liveLeaderboard.take(9).toList();
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -185,31 +207,65 @@ class _RaceScreenState extends State<RaceScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Top 10 After This Segment:', style: TextStyle(fontWeight: FontWeight.bold)),
-          ...List.generate(state.liveLeaderboard.length, (i) {
-            final leaderTime = state.liveLeaderboard.first.totalTime;
-            final diff = state.liveLeaderboard[i].totalTime - leaderTime;
-            final showTime = i == 0
-                ? RaceUtils.formatTime(state.liveLeaderboard[i].totalTime)
-                : '+${RaceUtils.formatTimeDiff(diff)}';
-            final totalMisses = state.liveLeaderboard[i].shootingMisses.fold(0, (a, b) => a + b);
-            final flag = RaceUtils.countryToFlag(state.liveLeaderboard[i].athlete.country);
-            return RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(text: '${i + 1}. ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal)),
-                  RaceUtils.buildFlagNameSpan(flag, state.liveLeaderboard[i].athlete.name, state.liveLeaderboard[i].athlete.surname),
-                  TextSpan(text: ' $showTime (${totalMisses} misses)', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal)),
-                ],
-                style: TextStyle(
-                  fontWeight: i == state.livePlayerIndex ? FontWeight.bold : FontWeight.normal,
-                  color: i == state.livePlayerIndex ? Colors.blue : DefaultTextStyle.of(context).style.color,
-                  fontSize: 14,
-                ),
+          const Text('Top 9 After This Segment:', style: TextStyle(fontWeight: FontWeight.bold)),
+          SizedBox(
+            height: 90,
+            width: 750,
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 300/30,
+                mainAxisSpacing: 0.5,
+                crossAxisSpacing: 0.5,
               ),
-            );
-          }),
+              itemCount: top9.length,
+              itemBuilder: (context, i) {
+                // Fill by columns: col0: 0,3,6; col1: 1,4,7; col2: 2,5,8
+                int col = i % 3;
+                int row = i ~/ 3;
+                int idx = col * 3 + row;
+                if (idx >= top9.length) return const SizedBox.shrink();
+                final leaderTime = top9.first.totalTime;
+                final diff = top9[idx].totalTime - leaderTime;
+                final showTime = idx == 0
+                    ? RaceUtils.formatTime(top9[idx].totalTime)
+                    : '+${RaceUtils.formatTimeDiff(diff)}';
+                final flag = RaceUtils.countryToFlag(top9[idx].athlete.country);
+                return Container(
+                  width: 300,
+                  height: 30,
+                  child: Row(
+                    children: [
+                      Text('${idx + 1}.', style: const TextStyle(fontSize: 13)),
+                      Text(flag, style: const TextStyle(fontSize: 16)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '${top9[idx].athlete.name} ${top9[idx].athlete.surname}',
+                          style: TextStyle(
+                            fontWeight: idx == state.livePlayerIndex ? FontWeight.bold : FontWeight.normal,
+                            color: idx == state.livePlayerIndex ? Colors.blue : DefaultTextStyle.of(context).style.color,
+                            fontSize: 13,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        showTime,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.normal),
+                        textAlign: TextAlign.right,
+                      ),
+                      const SizedBox(width: 20),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );

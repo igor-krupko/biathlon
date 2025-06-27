@@ -36,6 +36,8 @@ class ResumeAnimation extends LapProgressEvent {
   const ResumeAnimation();
 }
 
+class StartNextSegmentAnimation extends LapProgressEvent {}
+
 // States
 abstract class LapProgressState extends Equatable {
   const LapProgressState();
@@ -97,10 +99,11 @@ class LapProgressBloc extends Bloc<LapProgressEvent, LapProgressState> {
 
   LapProgressBloc() : super(LapProgressInitial()) {
     on<StartLapProgress>(_onStartLapProgress);
-    on<CompleteSegment>(_onCompleteSegment);
+    on<CompleteSegment>(_onCompleteSegmentAsync);
     on<StopAnimation>(_onStopAnimation);
     on<ResumeAnimation>(_onResumeAnimation);
     on<_UpdateProgressInternal>(_onUpdateProgressInternal);
+    on<StartNextSegmentAnimation>(_onStartNextSegmentAnimation);
   }
 
   void _onStartLapProgress(StartLapProgress event, Emitter<LapProgressState> emit) {
@@ -114,38 +117,37 @@ class LapProgressBloc extends Bloc<LapProgressEvent, LapProgressState> {
     _startNextSegment();
   }
 
-  void _onCompleteSegment(CompleteSegment event, Emitter<LapProgressState> emit) {
+  Future<void> _onCompleteSegmentAsync(CompleteSegment event, Emitter<LapProgressState> emit) async {
     if (state is! LapProgressInProgress) return;
-    
     final currentState = state as LapProgressInProgress;
     if (!currentState.isAnimating) return;
 
     _animationTimer?.cancel();
-    
+
     emit(currentState.copyWith(
       isAnimating: false,
       stoppedProgress: event.progress,
     ));
 
-    // Wait a bit before moving to next segment
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (state is LapProgressInProgress) {
-        final updatedState = state as LapProgressInProgress;
-        final newCurrentSegment = updatedState.currentSegment + 1;
-        
-        if (newCurrentSegment >= updatedState.totalSegments) {
-          emit(LapProgressCompleted(1.0));
-        } else {
-          emit(updatedState.copyWith(
-            currentSegment: newCurrentSegment,
-            isAnimating: true,
-            stoppedProgress: null,
-            currentProgress: 0.0,
-          ));
-          _startNextSegment();
-        }
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (emit.isDone) return;
+
+    if (state is LapProgressInProgress) {
+      final updatedState = state as LapProgressInProgress;
+      final newCurrentSegment = updatedState.currentSegment + 1;
+
+      if (newCurrentSegment >= updatedState.totalSegments) {
+        emit(LapProgressCompleted(1.0));
+      } else {
+        emit(updatedState.copyWith(
+          currentSegment: newCurrentSegment,
+          isAnimating: true,
+          stoppedProgress: null,
+          currentProgress: 0.0,
+        ));
+        add(StartNextSegmentAnimation());
       }
-    });
+    }
   }
 
   void _onStopAnimation(StopAnimation event, Emitter<LapProgressState> emit) {
@@ -178,7 +180,16 @@ class LapProgressBloc extends Bloc<LapProgressEvent, LapProgressState> {
       stoppedProgress: null,
       currentProgress: 0.0,
     ));
-    _startNextSegment();
+    add(StartNextSegmentAnimation());
+  }
+
+  void _onStartNextSegmentAnimation(StartNextSegmentAnimation event, Emitter<LapProgressState> emit) {
+    if (state is LapProgressInProgress) {
+      final currentState = state as LapProgressInProgress;
+      if (currentState.isAnimating) {
+        _startNextSegment();
+      }
+    }
   }
 
   void _startNextSegment() {
