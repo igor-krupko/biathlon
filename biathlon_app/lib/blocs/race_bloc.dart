@@ -6,6 +6,7 @@ import '../models/race_stats.dart';
 import '../models/career.dart';
 import '../models/athlete_race_result.dart';
 import '../models/race_points_result.dart';
+import '../models/track_type.dart';
 import '../services/race_simulation_service.dart';
 import '../services/audio_service.dart';
 import '../services/settings_service.dart';
@@ -94,6 +95,7 @@ class RaceInProgress extends RaceState {
   final List<AthleteRaceResult> partialResults;
   final bool showIntermediateTime;
   final double lastIntermediateTime;
+  final double initialGap;
 
   const RaceInProgress({
     required this.race,
@@ -112,6 +114,7 @@ class RaceInProgress extends RaceState {
     required this.partialResults,
     required this.showIntermediateTime,
     required this.lastIntermediateTime,
+    required this.initialGap
   });
 
   @override
@@ -131,6 +134,7 @@ class RaceInProgress extends RaceState {
         partialResults,
         showIntermediateTime,
         lastIntermediateTime,
+        initialGap
       ];
 
   RaceInProgress copyWith({
@@ -150,6 +154,7 @@ class RaceInProgress extends RaceState {
     List<AthleteRaceResult>? partialResults,
     bool? showIntermediateTime,
     double? lastIntermediateTime,
+    double? initialGap,
   }) {
     return RaceInProgress(
       race: race ?? this.race,
@@ -168,6 +173,7 @@ class RaceInProgress extends RaceState {
       partialResults: partialResults ?? this.partialResults,
       showIntermediateTime: showIntermediateTime ?? this.showIntermediateTime,
       lastIntermediateTime: lastIntermediateTime ?? this.lastIntermediateTime,
+      initialGap: initialGap ?? this.initialGap,
     );
   }
 }
@@ -179,7 +185,7 @@ class RaceFinished extends RaceState {
   final List<double> segmentTimes;
   final List<int> shootingMisses;
   final List<AthleteRaceResult> allResults;
-  final int playerPlace;
+  final int? playerPlace;
   final List<RacePointsResult> raceResults;
 
   const RaceFinished({
@@ -262,21 +268,130 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
         return (a.surname + a.name).compareTo(b.surname + b.name);
       });
       athleteIdToStartNumber = { for (int i = 0; i < allAthletes.length; i++) allAthletes[i].id: i + 1 };
-      print('athleteIdToStartNumber (by points):');
-      athleteIdToStartNumber.forEach((id, num) {
-        print('  id=\x1B[32m$id\x1B[0m => startNumber=$num');
-      });
+
     } else {
       // Assign randomly
       allAthletes.shuffle();
       athleteIdToStartNumber = { for (int i = 0; i < allAthletes.length; i++) allAthletes[i].id: i + 1 };
-      print('athleteIdToStartNumber (random):');
-      athleteIdToStartNumber.forEach((id, num) {
-        print('  id=\x1B[32m$id\x1B[0m => startNumber=$num');
-      });
     }
-    // Simulate competitors using the service
-    final allSimulatedResults = await _simulationService.simulateCompetitors(event.race.track, event.race.date.year, athleteIdToStartNumber);
+    // --- Pursuit initial gaps logic ---
+    Map<int, double>? initialGaps;
+    double initialGap = 0.0;
+    print(event.seasonResults);
+    if (event.race.track.type == TrackType.pursuit && event.seasonResults != null && event.seasonResults!.isNotEmpty) {
+      // Find previous race in the same season
+      final allResults = event.seasonResults!.expand((x) => x).toList();
+      final seasonRaces = allResults.map((r) => r.race).where((r) => r.date.isBefore(event.race.date)).toList();
+      seasonRaces.sort((a, b) => b.date.compareTo(a.date));
+      if (seasonRaces.isNotEmpty) {
+        final prevRace = seasonRaces[0];
+        // Get results for previous race
+        final prevResults = allResults.where((r) => r.race.id == prevRace.id).toList();
+        if (prevResults.isNotEmpty) {
+          // Sort by place
+          prevResults.sort((a, b) => a.place.compareTo(b.place));
+          final leaderTime = prevResults.first.time;
+          initialGaps = { for (var r in prevResults) r.athlete.id: (r.time - leaderTime) };
+        }
+        initialGap = initialGaps?[event.player.id] ?? 0.0;
+      }
+    }
+    // --- Mass start logic: only top 30 by points ---
+    if (event.race.track.type == TrackType.mass && event.seasonResults != null && event.seasonResults!.isNotEmpty) {
+      // Flatten all results for the current season
+      final allResults = event.seasonResults!.expand((x) => x).toList();
+      final year = event.race.date.year;
+      final seasonResults = allResults.where((r) => r.race.date.year == year).toList();
+      // Aggregate points by athlete
+      final Map<int, int> athletePoints = {};
+      for (final r in seasonResults) {
+        athletePoints[r.athlete.id] = (athletePoints[r.athlete.id] ?? 0) + r.points;
+      }
+      // Sort by points descending
+      final sortedAthletes = athletePoints.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final top30Ids = sortedAthletes.take(30).map((e) => e.key).toSet();
+      final playerInTop30 = top30Ids.contains(event.player.id);
+      if (!playerInTop30) {
+        // Simulate the race for the top 30 only, show final results to the user
+        final allSimulatedResults = await _simulationService.simulateCompetitors(
+          event.race.track,
+          event.race.date.year,
+          athleteIdToStartNumber
+        );
+        final top30Athletes = allSimulatedResults.where((r) => top30Ids.contains(r.athlete.id)).toList();
+        // Calculate final results
+        final raceResults = _simulationService.calculateFinalResults(
+          RaceInProgress(
+            race: event.race,
+            player: event.player,
+            playerStartNumber: null,
+            currentLap: 0,
+            totalLaps: event.race.track.laps,
+            currentShooting: 0,
+            isShooting: false,
+            segmentTimes: [],
+            shootingMisses: [],
+            totalTime: 0.0,
+            allSimulatedResults: top30Athletes,
+            liveLeaderboard: [],
+            livePlayerIndex: 0,
+            partialResults: [],
+            showIntermediateTime: false,
+            lastIntermediateTime: 0.0,
+            initialGap: 0.0,
+          ),
+          event.race,
+        );
+        emit(RaceFinished(
+          race: event.race,
+          player: event.player,
+          totalTime: 0.0,
+          segmentTimes: const [],
+          shootingMisses: const [],
+          allResults: raceResults.allResults,
+          playerPlace: null,
+          raceResults: raceResults.pointsResults,
+        ));
+        return;
+      } else {
+        final allSimulatedResults = await _simulationService.simulateCompetitors(
+          event.race.track,
+          event.race.date.year,
+          athleteIdToStartNumber,
+          initialGaps: initialGaps,
+        );
+
+        final top30Athletes = allSimulatedResults.where((r) => top30Ids.contains(r.athlete.id)).toList();
+
+        emit(RaceInProgress(
+          race: event.race,
+          player: event.player,
+          playerStartNumber: athleteIdToStartNumber?[event.player.id],
+          currentLap: 0,
+          totalLaps: event.race.track.laps,
+          currentShooting: 0,
+          isShooting: false,
+          segmentTimes: [],
+          shootingMisses: [],
+          totalTime: 0.0,
+          allSimulatedResults: top30Athletes,
+          liveLeaderboard: [],
+          livePlayerIndex: 0,
+          partialResults: [],
+          showIntermediateTime: false,
+          lastIntermediateTime: 0.0,
+          initialGap: initialGap
+        ));
+        return;
+      }
+    }
+    final allSimulatedResults = await _simulationService.simulateCompetitors(
+      event.race.track,
+      event.race.date.year,
+      athleteIdToStartNumber,
+      initialGaps: initialGaps,
+    );
 
     emit(RaceInProgress(
       race: event.race,
@@ -295,6 +410,7 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
       partialResults: [],
       showIntermediateTime: false,
       lastIntermediateTime: 0.0,
+      initialGap: initialGap
     ));
   }
 
@@ -305,7 +421,10 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
       final segmentsCompletedInLap = currentState.segmentTimes.length % segmentsInLap;
       
       if (segmentsCompletedInLap < segmentsInLap) {
-        final segmentTime = RaceStats.calculateSegmentTime(event.progress, currentState.player.speed / 100.0);
+        double segmentTime = RaceStats.calculateSegmentTime(event.progress, currentState.player.speed / 100.0);
+        if (currentState.segmentTimes.isEmpty) {
+          segmentTime += currentState.initialGap;
+        }
         final newSegmentTimes = List<double>.from(currentState.segmentTimes)..add(segmentTime);
         final newTotalTime = currentState.totalTime + segmentTime;
         
@@ -339,7 +458,7 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
     if (state is RaceInProgress) {
       final currentState = state as RaceInProgress;
       final misses = event.totalShots - event.hits;
-      final penalty = RaceStats.calculateShootingPenalty(misses);
+      final penalty = RaceStats.calculateShootingPenalty(misses, currentState.race.track.type);
       
       final newShootingMisses = List<int>.from(currentState.shootingMisses)..add(misses);
       final newTotalTime = currentState.totalTime + penalty;

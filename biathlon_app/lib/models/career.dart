@@ -52,6 +52,45 @@ class Career {
     this.currentRaceIndex = 0,
   }) : seasons = seasons ?? _generateSeasons();
 
+  factory Career.fromJson(Map<String, dynamic> json) {
+    Career career = Career(
+      startDate: DateTime.parse(json['startDate'] as String),
+      player: Athlete.fromJson(json['player'] as Map<String, dynamic>),
+      isActive: json['isActive'] as bool,
+      seasons: (json['seasons'] as List<dynamic>)
+          .map((e) => Season.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      currentSeasonIndex: json['currentSeasonIndex'] as int,
+      currentRaceIndex: json['currentRaceIndex'] as int,
+    );
+    if (json['racePointsHistory'] != null) {
+      (json['racePointsHistory'] as List<dynamic>)
+          .map((e) => RacePointsResult.fromJson(e as Map<String, dynamic>))
+          .forEach(career.racePointsHistory.add);
+    }
+    if (json['allRacesResults'] != null) {
+      (json['allRacesResults'] as List<dynamic>)
+          .map((list) => (list as List<dynamic>)
+              .map((e) => RacePointsResult.fromJson(e as Map<String, dynamic>))
+              .toList())
+          .forEach(career.allRacesResults.add);
+    }
+    career.seasonRating = json['seasonRating'] as int?;
+    return career;
+  }
+
+  Map<String, dynamic> toJson() => {
+        'startDate': startDate.toIso8601String(),
+        'isActive': isActive,
+        'seasons': seasons.map((e) => e.toJson()).toList(),
+        'currentSeasonIndex': currentSeasonIndex,
+        'currentRaceIndex': currentRaceIndex,
+        'player': player.toJson(),
+        'racePointsHistory': racePointsHistory.map((e) => e.toJson()).toList(),
+        'allRacesResults': allRacesResults.map((list) => list.map((e) => e.toJson()).toList()).toList(),
+        'seasonRating': seasonRating,
+      };
+
   static List<Race> _loadRacesForYear(int year) {
     switch (year) {
       case 1999:

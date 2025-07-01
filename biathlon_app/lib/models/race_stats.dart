@@ -3,6 +3,7 @@ import 'athlete.dart';
 import 'track.dart';
 import 'athlete_race_result.dart';
 import 'race_simulator.dart';
+import 'track_type.dart';
 
 class RaceStats {
   final List<double> segmentTimes; // Time for each 100m segment
@@ -34,7 +35,10 @@ class RaceStats {
     }
   }
 
-  static double calculateShootingPenalty(int misses) {
-    return misses * 24.0; // 24 seconds per miss
+  static double calculateShootingPenalty(int misses, TrackType type) {
+    if (type == TrackType.individual) {
+      return misses * 60.0;
+    }
+    return misses * 24.0;
   }
 } 

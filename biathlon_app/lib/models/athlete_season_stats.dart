@@ -10,4 +10,20 @@ class AthleteSeasonStats {
     required this.shootingDown,
     required this.shootingStanding,
   });
+
+  factory AthleteSeasonStats.fromJson(Map<String, dynamic> json) {
+    return AthleteSeasonStats(
+      isActive: json['isActive'] as bool,
+      speed: json['speed'] as int,
+      shootingDown: json['shootingDown'] as int,
+      shootingStanding: json['shootingStanding'] as int,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'isActive': isActive,
+        'speed': speed,
+        'shootingDown': shootingDown,
+        'shootingStanding': shootingStanding,
+      };
 } 

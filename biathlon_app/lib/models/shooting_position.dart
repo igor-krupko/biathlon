@@ -10,4 +10,17 @@ enum ShootingPosition {
         return 'Standing';
     }
   }
+
+  static ShootingPosition fromString(String value) {
+    switch (value) {
+      case 'down':
+        return ShootingPosition.down;
+      case 'standing':
+        return ShootingPosition.standing;
+      default:
+        throw Exception('Unknown ShootingPosition: $value');
+    }
+  }
+
+  String toJson() => toString().split('.').last;
 } 

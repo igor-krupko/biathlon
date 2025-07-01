@@ -70,7 +70,6 @@ class AthleteTrackProgress extends StatelessWidget {
             double x = beforeFirstSegment
                 ? centerX
                 : centerX + ((athleteDistance - currentDistance) * (width / (windowWidth == 0 ? 1 : windowWidth)));
-            print('UI: Athlete: \\${r.athlete.name} (id=${r.athlete.id}) startNumber=${r.startNumber}');
             return _AthleteVisual(
               athlete: r.athlete,
               x: x,
@@ -225,31 +224,61 @@ class _AthleteCircleWithName extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: Colors.black, width: 2),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Stack(
             children: [
               // Start number in top half
               if (v.startNumber != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2.0),
-                  child: Text(
-                    v.startNumber.toString(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                Positioned(
+                  top: 4,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Text(
+                      v.startNumber.toString(),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
                   ),
-                )
-              else
-                const SizedBox(height: 5),
-              // Spacer for flag
-              const Spacer(),
-              Text(
-                RaceUtils.countryToFlag(v.athlete.country),
-                style: const TextStyle(fontSize: 18),
+                ),
+              // Flag at the bottom, filling width, half height, rounded bottom corners
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(circleRadius),
+                    bottomRight: Radius.circular(circleRadius),
+                  ),
+                  child: RaceUtils.flagImage(
+                    v.athlete.country,
+                    size: circleRadius, // width will be set by SizedBox
+                  ),
+                ),
               ),
-              const SizedBox(height: 1),
+              // SizedBox to force flag to fill width and half height
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SizedBox(
+                  width: circleRadius * 2,
+                  height: circleRadius,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(circleRadius),
+                      bottomRight: Radius.circular(circleRadius),
+                    ),
+                    child: RaceUtils.flagImage(
+                      v.athlete.country,
+                      size: circleRadius * 2,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

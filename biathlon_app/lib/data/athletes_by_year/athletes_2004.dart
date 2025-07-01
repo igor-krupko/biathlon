@@ -46,4 +46,9 @@ final List<Map<String, String>> athletes2004 = [
   {"name": "Vasily", "surname": "Rotenberg", "country": "Russia", "speed": "62", "shootingDown": "64", "shootingStanding": "61"},
   {"name": "Kari", "surname": "Henriksson", "country": "Finland", "speed": "61", "shootingDown": "63", "shootingStanding": "60"},
   {"name": "Milan", "surname": "Augustín", "country": "Slovakia", "speed": "60", "shootingDown": "62", "shootingStanding": "59"},
+  {"name": "Serhiy", "surname": "Sednev", "country": "Ukraine", "speed": "78", "shootingDown": "81", "shootingStanding": "78"},
+  {"name": "Tomas", "surname": "Koukal", "country": "Czech Republic", "speed": "77", "shootingDown": "80", "shootingStanding": "77"},
+  {"name": "Oleg", "surname": "Ryzhenkov", "country": "Belarus", "speed": "76", "shootingDown": "78", "shootingStanding": "75"},
+  {"name": "Paavo", "surname": "Puurunen", "country": "Finland", "speed": "75", "shootingDown": "77", "shootingStanding": "74"},
+  {"name": "Wolfgang", "surname": "Rottmann", "country": "Austria", "speed": "74", "shootingDown": "76", "shootingStanding": "73"},
 ]; 

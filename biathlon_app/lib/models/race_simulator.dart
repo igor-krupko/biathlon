@@ -10,12 +10,13 @@ class RaceSimulator {
     required Athlete athlete,
     required Track track,
     required Random random,
-    required int year
+    required int year,
+    double initialGap = 0.0,
   }) {
     final List<double> segmentTimes = [];
     final List<int> shootingMisses = [];
     final List<double> cumulativeTimes = [];
-    double totalTime = 0;
+    double totalTime = initialGap;
     int shootingIndex = 0;
     int segmentCount = (track.lapDistance / 100).ceil() * track.laps;
     int segmentsPerLap = (track.lapDistance / 100).ceil();
@@ -30,7 +31,7 @@ class RaceSimulator {
         // Add a little more randomness
         time += random.nextDouble() * 2 - 1; // ±1s
         time = time.clamp(12.0, 32.0);
-        segmentTimes.add(time);
+        segmentTimes.add(time + (lap == 0 && seg == 0 ? initialGap : 0));
         totalTime += time;
         cumulativeTimes.add(totalTime);
       }
@@ -48,7 +49,7 @@ class RaceSimulator {
           }
         }
         shootingMisses.add(misses);
-        double penalty = RaceStats.calculateShootingPenalty(misses);
+        double penalty = RaceStats.calculateShootingPenalty(misses, track.type);
         totalTime += penalty;
         cumulativeTimes.add(totalTime); // after shooting
         shootingIndex++;

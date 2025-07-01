@@ -129,7 +129,7 @@ class LapProgressBloc extends Bloc<LapProgressEvent, LapProgressState> {
       stoppedProgress: event.progress,
     ));
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 100));
     if (emit.isDone) return;
 
     if (state is LapProgressInProgress) {

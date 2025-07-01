@@ -94,6 +94,8 @@ class CareerError extends CareerState {
 class CareerBloc extends BaseBloc<CareerEvent, CareerState> {
   final CareerRepository _repository;
 
+  CareerRepository get repository => _repository;
+
   CareerBloc({CareerRepository? repository})
       : _repository = repository ?? CareerRepositoryImpl(),
         super(CareerInitial()) {
@@ -201,6 +203,7 @@ class CareerBloc extends BaseBloc<CareerEvent, CareerState> {
       () async {
         currentCareer.addRacePointsResult(event.result);
         currentCareer.updateSeasonRating();
+        currentCareer.addMoneyToPlayer(event.result.points * 500);
         await _repository.saveCareer(currentCareer);
         emit(CareerActive(currentCareer));
       },

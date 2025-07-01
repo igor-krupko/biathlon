@@ -180,13 +180,17 @@ class _RaceScreenState extends State<RaceScreen> {
         color: Colors.black.withOpacity(0.7),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        '№ $place   $flag $playerName   ${diff <= 0 ? diffStr : "+$diffStr"}',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('№ $place', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 8),
+          if (flag.isNotEmpty) RaceUtils.flagImage(player?.athlete.country ?? '', size: 18),
+          const SizedBox(width: 4),
+          Text(playerName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 8),
+          Text(diff <= 0 ? diffStr : "+$diffStr", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
@@ -241,7 +245,7 @@ class _RaceScreenState extends State<RaceScreen> {
                   child: Row(
                     children: [
                       Text('${idx + 1}.', style: const TextStyle(fontSize: 13)),
-                      Text(flag, style: const TextStyle(fontSize: 16)),
+                      RaceUtils.flagImage(top9[idx].athlete.country, size: 16),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -313,6 +317,8 @@ class _RaceScreenState extends State<RaceScreen> {
   }
 
   void _showResultsDialog(BuildContext context, RaceFinished state) {
+    final isMass = state.race.track.type.toString().contains('mass');
+    final pointsTable = isMass ? massStartPoints : usualRacePoints;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -332,9 +338,9 @@ class _RaceScreenState extends State<RaceScreen> {
               const SizedBox(height: 8),
               Text('Total Misses: ${state.shootingMisses.fold(0, (sum, misses) => sum + misses)}'),
               const SizedBox(height: 16),
-              PodiumWidget(results: state.allResults),
+              PodiumWidget(results: state.allResults, pointsTable: pointsTable),
               const SizedBox(height: 24),
-              _buildResultsTable(dialogContext, state.allResults),
+              _buildResultsTable(dialogContext, state.allResults, pointsTable),
               const SizedBox(height: 16),
             ],
           ),
@@ -372,7 +378,7 @@ class _RaceScreenState extends State<RaceScreen> {
         child: Row(
           children: [
             Text('${entry.key + 1}. ', style: const TextStyle(fontSize: 14)),
-            Text(flag, style: const TextStyle(fontSize: 18)),
+            RaceUtils.flagImage(entry.value.athlete.country, size: 18),
             const SizedBox(width: 4),
             Expanded(
               child: Text(
@@ -469,7 +475,8 @@ class ShootingView extends StatelessWidget {
 
 class PodiumWidget extends StatelessWidget {
   final List<AthleteRaceResult> results;
-  const PodiumWidget({super.key, required this.results});
+  final List<int> pointsTable;
+  const PodiumWidget({super.key, required this.results, required this.pointsTable});
 
   @override
   Widget build(BuildContext context) {
@@ -495,7 +502,7 @@ class PodiumWidget extends StatelessWidget {
             color: Colors.grey[400]!,
             isPlaceholder: results.length < 2,
             leaderTime: leaderTime,
-            points: 1 < 40 ? (1 < 30 ? usualRacePoints[1] : 0) : 0,
+            points: 1 < pointsTable.length ? pointsTable[1] : 0,
           ),
           _PodiumStep(
             place: 1,
@@ -504,7 +511,7 @@ class PodiumWidget extends StatelessWidget {
             color: Colors.amber[400]!,
             isPlaceholder: results.isEmpty,
             leaderTime: leaderTime,
-            points: 0 < 40 ? (0 < 30 ? usualRacePoints[0] : 0) : 0,
+            points: 0 < pointsTable.length ? pointsTable[0] : 0,
           ),
           _PodiumStep(
             place: 3,
@@ -513,7 +520,7 @@ class PodiumWidget extends StatelessWidget {
             color: Colors.brown[300]!,
             isPlaceholder: results.length < 3,
             leaderTime: leaderTime,
-            points: 2 < 40 ? (2 < 30 ? usualRacePoints[2] : 0) : 0,
+            points: 2 < pointsTable.length ? pointsTable[2] : 0,
           ),
         ],
       ),
@@ -593,10 +600,7 @@ class _PodiumStep extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          RaceUtils.countryToFlag(result.athlete.country),
-                          style: const TextStyle(fontSize: 22),
-                        ),
+                        RaceUtils.flagImage(result.athlete.country, size: 22),
                         Text(
                           '${result.athlete.name} ${result.athlete.surname}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
@@ -630,7 +634,7 @@ class _PodiumStep extends StatelessWidget {
   }
 }
 
-Widget _buildResultsTable(BuildContext context, List<AthleteRaceResult> allResults) {
+Widget _buildResultsTable(BuildContext context, List<AthleteRaceResult> allResults, List<int> pointsTable) {
   final sorted = [...allResults];
   sorted.sort((a, b) => a.totalTime.compareTo(b.totalTime));
   final rest = sorted.length > 3 ? sorted.sublist(3) : [];
@@ -643,18 +647,18 @@ Widget _buildResultsTable(BuildContext context, List<AthleteRaceResult> allResul
     children: rest.asMap().entries.map((entry) {
       final idx = entry.key + 4;
       final r = entry.value;
-      final flag = RaceUtils.countryToFlag(r.athlete.country);
+      final flag = RaceUtils.flagImage(r.athlete.country, size: 18);
       final totalMisses = r.shootingMisses.fold(0, (a, b) => a + b);
       final showTime = RaceUtils.formatTime(r.totalTime);
       final diff = r.totalTime - leaderTime;
       final showDiff = idx == 1 ? '' : '+${RaceUtils.formatTimeDiff(diff)}';
-      final points = (idx - 1) < 40 ? ((idx - 1) < 30 ? usualRacePoints[idx - 1] : 0) : 0;
+      final points = (idx - 1) < pointsTable.length ? pointsTable[idx - 1] : 0;
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 2.0),
         child: Row(
           children: [
             Text('$idx. ', style: const TextStyle(fontSize: 14)),
-            Text(flag, style: const TextStyle(fontSize: 18)),
+            flag,
             const SizedBox(width: 4),
             Expanded(
               child: Text(

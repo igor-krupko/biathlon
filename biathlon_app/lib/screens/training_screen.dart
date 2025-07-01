@@ -17,7 +17,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
   static const int baseStat = 70;
 
   int _calcCost(int base, int upgrades) {
-    final cost = base * pow(1.1, upgrades).toDouble();
+    final cost = base * pow(1.2, upgrades).toDouble();
     return ((cost / 100).round() * 100).toInt();
   }
 
@@ -65,18 +65,18 @@ class _TrainingScreenState extends State<TrainingScreen> {
                 }, _calcCost(1000, speedUpgrades)),
                 const SizedBox(height: 16),
                 _buildStatRow(context, 'Shooting (Prone)', player.shootingDown, () {
-                  final cost = _calcCost(1000, shootingDownUpgrades);
+                  final cost = _calcCost(500, shootingDownUpgrades);
                   if (money >= cost) {
                     _upgradeStat(context, career, 'shootingDown', cost);
                   }
-                }, _calcCost(1000, shootingDownUpgrades)),
+                }, _calcCost(500, shootingDownUpgrades)),
                 const SizedBox(height: 16),
                 _buildStatRow(context, 'Shooting (Standing)', player.shootingStanding, () {
-                  final cost = _calcCost(1000, shootingStandingUpgrades);
+                  final cost = _calcCost(500, shootingStandingUpgrades);
                   if (money >= cost) {
                     _upgradeStat(context, career, 'shootingStanding', cost);
                   }
-                }, _calcCost(1000, shootingStandingUpgrades)),
+                }, _calcCost(500, shootingStandingUpgrades)),
                 const Spacer(),
                 Center(
                   child: ElevatedButton(

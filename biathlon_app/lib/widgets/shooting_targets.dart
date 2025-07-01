@@ -66,7 +66,7 @@ class _ShootingTargetsState extends State<ShootingTargets> with SingleTickerProv
     
     // Calculate if hit is within target
     final hitDistance = (hitPosition - targetCenter).distance;
-    final targetRadius = widget.position == ShootingPosition.down ? 15.0 : 30.0;
+    final targetRadius = widget.position == ShootingPosition.down ? 20.0 : 40.0;
     final isHit = hitDistance <= targetRadius;
 
     // Play shooting sound immediately when shot is fired
@@ -221,7 +221,7 @@ class _ShootingTargetsState extends State<ShootingTargets> with SingleTickerProv
                         children: List.generate(5, (index) {
                           final isHit = state.hits[index];
                           final hitLocation = state.hitLocations[index];
-                          final targetSize = widget.position == ShootingPosition.down ? 30.0 : 60.0;
+                          final targetSize = widget.position == ShootingPosition.down ? 40.0 : 80.0;
 
                           return Stack(
                             key: targetKeys[index],
@@ -229,7 +229,7 @@ class _ShootingTargetsState extends State<ShootingTargets> with SingleTickerProv
                               Container(
                                 width: targetSize,
                                 height: targetSize,
-                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                margin: const EdgeInsets.symmetric(horizontal: 16),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: isHit ? Colors.grey : Colors.white,

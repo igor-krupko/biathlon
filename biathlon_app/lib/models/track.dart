@@ -131,6 +131,33 @@ class Track {
 
   @override
   String toString() {
-    return 'Track: $name ($country) - ${type.toString().split('.').last} - ${totalDistance}m';
+    return 'Track: $name ($country) - \\${type.toString().split('.').last} - \\${totalDistance}m';
   }
+
+  factory Track.fromJson(Map<String, dynamic> json) {
+    return Track(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      country: json['country'] as String,
+      laps: json['laps'] as int,
+      lapsDistance: (json['lapsDistance'] as num).toDouble(),
+      shootingPositions: (json['shootingPositions'] as List<dynamic>)
+          .map((e) => ShootingPosition.fromString(e as String)).toList(),
+      lapDistance: (json['lapDistance'] as num).toDouble(),
+      type: TrackType.fromString(json['type'] as String),
+      backgroundAsset: json['backgroundAsset'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'country': country,
+        'laps': laps,
+        'lapsDistance': lapsDistance,
+        'shootingPositions': shootingPositions.map((e) => e.toJson()).toList(),
+        'lapDistance': lapDistance,
+        'type': type.toJson(),
+        'backgroundAsset': backgroundAsset,
+      };
 } 
