@@ -5,9 +5,9 @@ class Athlete {
   final String name;
   final String surname;
   final String country;
-  final int speed; // 1-100
-  final int shootingDown; // 1-100 (prone)
-  final int shootingStanding; // 1-100 (standing)
+  final double speed; // 1-100
+  final double shootingDown; // 1-100 (prone)
+  final double shootingStanding; // 1-100 (standing)
   final int money; // Player's money (default 0 for player)
   final Map<int, AthleteSeasonStats>? seasonStats;
 
@@ -29,9 +29,9 @@ class Athlete {
       name: json['name'] as String,
       surname: json['surname'] as String,
       country: json['country'] as String,
-      speed: json['speed'] as int,
-      shootingDown: json['shootingDown'] as int,
-      shootingStanding: json['shootingStanding'] as int,
+      speed: (json['speed'] as num).toDouble(),
+      shootingDown: (json['shootingDown'] as num).toDouble(),
+      shootingStanding: (json['shootingStanding'] as num).toDouble(),
       money: json['money'] as int? ?? 0,
       seasonStats: json['seasonStats'] != null
           ? (json['seasonStats'] as Map<String, dynamic>).map((key, value) =>

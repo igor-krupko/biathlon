@@ -64,9 +64,9 @@ List<Athlete> loadAllPredefinedAthletes() {
   for (final year in yearlyAthletes.keys) {
     for (final data in yearlyAthletes[year]!) {
       final key = '${data["name"]}|${data["surname"]}|${data["country"]}';
-      final speed = int.tryParse(data["speed"] ?? "0") ?? 0;
-      final shootingDown = int.tryParse(data["shootingDown"] ?? "0") ?? 0;
-      final shootingStanding = int.tryParse(data["shootingStanding"] ?? "0") ?? 0;
+      final speed = double.tryParse(data["speed"] ?? "0") ?? 0;
+      final shootingDown = double.tryParse(data["shootingDown"] ?? "0") ?? 0;
+      final shootingStanding = double.tryParse(data["shootingStanding"] ?? "0") ?? 0;
 
       if (!athletesMap.containsKey(key)) {
         athletesMap[key] = Athlete(

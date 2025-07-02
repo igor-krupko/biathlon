@@ -38,11 +38,11 @@ class RaceSimulator {
       // Shooting after each lap except last
       if (shootingIndex < track.shootingPositions.length) {
         final pos = track.shootingPositions[shootingIndex];
-        int shootingSkill = pos == ShootingPosition.down ? athlete.seasonStats![year]!.shootingDown : athlete.seasonStats![year]!.shootingStanding;
+        double shootingSkill = pos == ShootingPosition.down ? athlete.seasonStats![year]!.shootingDown : athlete.seasonStats![year]!.shootingStanding;
         int misses = 0;
         for (int shot = 0; shot < 5; shot++) {
           // Each shot: chance to hit = shootingSkill% ± randomness
-          int skill = shootingSkill + random.nextInt(13) - 7; // ±5 randomness
+          double skill = shootingSkill + random.nextInt(13) - 7; // ±5 randomness
           skill = skill.clamp(50, 100);
           if (random.nextInt(100) >= skill) {
             misses++;

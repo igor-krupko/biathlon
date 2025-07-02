@@ -1,8 +1,8 @@
 class AthleteSeasonStats {
   final bool isActive;
-  final int speed;
-  final int shootingDown;
-  final int shootingStanding;
+  final double speed;
+  final double shootingDown;
+  final double shootingStanding;
 
   AthleteSeasonStats({
     required this.isActive,
@@ -14,9 +14,9 @@ class AthleteSeasonStats {
   factory AthleteSeasonStats.fromJson(Map<String, dynamic> json) {
     return AthleteSeasonStats(
       isActive: json['isActive'] as bool,
-      speed: json['speed'] as int,
-      shootingDown: json['shootingDown'] as int,
-      shootingStanding: json['shootingStanding'] as int,
+      speed: (json['speed'] as num).toDouble(),
+      shootingDown: (json['shootingDown'] as num).toDouble(),
+      shootingStanding: (json['shootingStanding'] as num).toDouble(),
     );
   }
 

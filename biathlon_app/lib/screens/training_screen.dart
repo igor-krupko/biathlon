@@ -14,9 +14,9 @@ class TrainingScreen extends StatefulWidget {
 }
 
 class _TrainingScreenState extends State<TrainingScreen> {
-  static const int baseStat = 70;
+  static const double baseStat = 70.0;
 
-  int _calcCost(int base, int upgrades) {
+  int _calcCost(int base, double upgrades) {
     final cost = base * pow(1.2, upgrades).toDouble();
     return ((cost / 100).round() * 100).toInt();
   }
@@ -92,7 +92,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     );
   }
 
-  Widget _buildStatRow(BuildContext context, String label, int value, VoidCallback onUpgrade, int cost) {
+  Widget _buildStatRow(BuildContext context, String label, double value, VoidCallback onUpgrade, int cost) {
     final currentMoney = (context.read<CareerBloc>().state is CareerActive)
         ? (context.read<CareerBloc>().state as CareerActive).career.player.money
         : 0;
