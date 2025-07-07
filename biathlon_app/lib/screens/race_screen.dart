@@ -306,9 +306,11 @@ class _RaceScreenState extends State<RaceScreen> {
 
   void _handleRaceFinished(BuildContext context, RaceFinished state) {
     // Add race results to career
-    context.read<CareerBloc>().add(AddRaceResult(state.raceResults.firstWhere(
-      (result) => result.athlete.id == state.player.id,
-    )));
+    if (state.raceResults.any((result) => result.athlete.id == state.player.id)) 
+    {
+      context.read<CareerBloc>().add(AddRaceResult(state.raceResults.firstWhere(
+      (result) => result.athlete.id == state.player.id)));
+    }
     context.read<CareerBloc>().add(AddFullRaceResults(state.raceResults));
     // Move to next race
     context.read<CareerBloc>().add(MoveToNextRace());

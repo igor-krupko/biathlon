@@ -95,7 +95,7 @@ class LapProgressCompleted extends LapProgressState {
 // BLoC
 class LapProgressBloc extends Bloc<LapProgressEvent, LapProgressState> {
   Timer? _animationTimer;
-  static const Duration _animationDuration = Duration(seconds: 2);
+  static const Duration _animationDuration = Duration(milliseconds: 700);
 
   LapProgressBloc() : super(LapProgressInitial()) {
     on<StartLapProgress>(_onStartLapProgress);
@@ -107,6 +107,11 @@ class LapProgressBloc extends Bloc<LapProgressEvent, LapProgressState> {
   }
 
   void _onStartLapProgress(StartLapProgress event, Emitter<LapProgressState> emit) {
+    // Always cancel any running timer and reset state
+    _animationTimer?.cancel();
+    if (state is LapProgressInProgress || state is LapProgressCompleted) {
+      emit(LapProgressInitial());
+    }
     final totalSegments = (event.lapDistance / 100).ceil();
     emit(LapProgressInProgress(
       currentSegment: 0,

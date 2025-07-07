@@ -256,8 +256,12 @@ class Career {
   }
 
   void updateSeasonRating() {
-    // Aggregate points for all athletes in the current season
-    final List<RacePointsResult> seasonResults = allRacesResults.expand((x) => x).where((r) => r.race.date.year == currentSeason.year).toList();
+    // Aggregate points for all athletes in the current season using date range
+    final seasonStart = DateTime(currentSeason.year, 6, 1);
+    final seasonEnd = DateTime(currentSeason.year + 1, 6, 1);
+    final List<RacePointsResult> seasonResults = allRacesResults.expand((x) => x)
+      .where((r) => r.race.date.isAfter(seasonStart) && r.race.date.isBefore(seasonEnd))
+      .toList();
     final Map<String, int> athletePoints = {};
     for (final result in seasonResults) {
       final key = '${result.athlete.name}|${result.athlete.surname}|${result.athlete.country}';

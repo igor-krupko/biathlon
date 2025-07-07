@@ -248,16 +248,28 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
     if (!allAthletes.any((a) => a.id == event.player.id)) {
       allAthletes.add(event.player);
     }
-    // Use event.seasonResults to aggregate points for the current year
+    // Use event.seasonResults to aggregate points for the current season
     if (event.seasonResults != null && event.seasonResults!.isNotEmpty) {
       // Flatten all results into a single list
       final allResults = event.seasonResults!.expand((x) => x).toList();
-      // Only include results from the current year
-      final year = event.race.date.year;
-      final yearResults = allResults.where((r) => r.race.date.year == year).toList();
+      // Determine season date range
+      final raceDate = event.race.date;
+      final seasonStart = DateTime(raceDate.year, 6, 1);
+      final seasonEnd = DateTime(raceDate.year + 1, 6, 1);
+      // If race is before June, it's part of previous year season
+      DateTime seasonLower, seasonUpper;
+      if (raceDate.isBefore(DateTime(raceDate.year, 6, 1))) {
+        seasonLower = DateTime(raceDate.year - 1, 6, 1);
+        seasonUpper = DateTime(raceDate.year, 6, 1);
+      } else {
+        seasonLower = seasonStart;
+        seasonUpper = seasonEnd;
+      }
+      // Only include results from the current season (by date range)
+      final seasonResults = allResults.where((r) => r.race.date.isAfter(seasonLower) && r.race.date.isBefore(seasonUpper)).toList();
       // Aggregate points by athlete id
       final Map<int, int> athletePoints = {};
-      for (final r in yearResults) {
+      for (final r in seasonResults) {
         athletePoints[r.athlete.id] = (athletePoints[r.athlete.id] ?? 0) + r.points;
       }
       // Sort allAthletes by points descending, then by name as fallback
@@ -300,8 +312,19 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
     if (event.race.track.type == TrackType.mass && event.seasonResults != null && event.seasonResults!.isNotEmpty) {
       // Flatten all results for the current season
       final allResults = event.seasonResults!.expand((x) => x).toList();
-      final year = event.race.date.year;
-      final seasonResults = allResults.where((r) => r.race.date.year == year).toList();
+      // Use the same season date range logic
+      final raceDate = event.race.date;
+      final seasonStart = DateTime(raceDate.year, 6, 1);
+      final seasonEnd = DateTime(raceDate.year + 1, 6, 1);
+      DateTime seasonLower, seasonUpper;
+      if (raceDate.isBefore(DateTime(raceDate.year, 6, 1))) {
+        seasonLower = DateTime(raceDate.year - 1, 6, 1);
+        seasonUpper = DateTime(raceDate.year, 6, 1);
+      } else {
+        seasonLower = seasonStart;
+        seasonUpper = seasonEnd;
+      }
+      final seasonResults = allResults.where((r) => r.race.date.isAfter(seasonLower) && r.race.date.isBefore(seasonUpper)).toList();
       // Aggregate points by athlete
       final Map<int, int> athletePoints = {};
       for (final r in seasonResults) {

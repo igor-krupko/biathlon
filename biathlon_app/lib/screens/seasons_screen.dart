@@ -14,7 +14,11 @@ class SeasonsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final playerKey = '${career.player.name}|${career.player.surname}|${career.player.country}';
     final completedSeasons = career.seasons.where((season) {
-      final results = career.allRacesResults.expand((x) => x).where((r) => r.race.date.year == season.year).toList();
+      final seasonStart = DateTime(season.year, 6, 1);
+      final seasonEnd = DateTime(season.year + 1, 6, 1);
+      final results = career.allRacesResults.expand((x) => x)
+        .where((r) => r.race.date.isAfter(seasonStart) && r.race.date.isBefore(seasonEnd))
+        .toList();
       return results.isNotEmpty && season.year < career.currentSeason.year;
     }).toList();
 
@@ -53,7 +57,11 @@ class SeasonsScreen extends StatelessWidget {
       itemBuilder: (context, idx) {
         final season = completedSeasons[idx];
         final year = season.year;
-        final seasonResults = career.allRacesResults.expand((x) => x).where((r) => r.race.date.year == year).toList();
+        final seasonStart = DateTime(year, 6, 1);
+        final seasonEnd = DateTime(year + 1, 6, 1);
+        final seasonResults = career.allRacesResults.expand((x) => x)
+          .where((r) => r.race.date.isAfter(seasonStart) && r.race.date.isBefore(seasonEnd))
+          .toList();
         return Padding(
           padding: const EdgeInsets.all(16.0),
           child: Card(
@@ -88,7 +96,11 @@ class SeasonsScreen extends StatelessWidget {
       itemBuilder: (context, idx) {
         final season = completedSeasons[idx];
         final year = season.year;
-        final seasonResults = career.allRacesResults.expand((x) => x).where((r) => r.race.date.year == year).toList();
+        final seasonStart = DateTime(year, 6, 1);
+        final seasonEnd = DateTime(year + 1, 6, 1);
+        final seasonResults = career.allRacesResults.expand((x) => x)
+          .where((r) => r.race.date.isAfter(seasonStart) && r.race.date.isBefore(seasonEnd))
+          .toList();
         return Padding(
           padding: const EdgeInsets.all(16.0),
           child: Card(
