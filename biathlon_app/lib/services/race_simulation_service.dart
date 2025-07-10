@@ -17,18 +17,18 @@ class RaceSimulationService {
   /// Simulates all competitors for a given track and year
   Future<List<AthleteRaceResult>> simulateCompetitors(
     Track track,
-    int year,
+    DateTime date,
     Map<int, int>? athleteIdToStartNumber, {
     Map<int, double>? initialGaps,
   }) async {
-    final competitors = generateCompetitors(year);
+    final competitors = generateCompetitors(date);
     return competitors.map((a) {
       final gap = initialGaps != null ? (initialGaps[a.id] ?? 0.0) : 0.0;
       final result = RaceSimulator.simulate(
         athlete: a,
-        year: year,
         track: track,
         random: Random(_random.nextInt(100000)),
+        date: date,
         initialGap: gap,
       );
       final startNumber = athleteIdToStartNumber != null ? athleteIdToStartNumber[a.id] : null;
@@ -145,11 +145,12 @@ class RaceSimulationService {
     );
   }
 
-  List<Athlete> generateCompetitors(int year) {
+  List<Athlete> generateCompetitors(DateTime date) {
+    int seasonYear = date.month < 6 ? date.year - 1 : date.year;
     final competitors = predefinedAthletes.where((athlete) {
       final stats = athlete.seasonStats;
       if (stats == null) return false;
-      final season = stats[year];
+      final season = stats[seasonYear];
       return season != null && season.isActive;
     }).toList();
     competitors.shuffle(_random);

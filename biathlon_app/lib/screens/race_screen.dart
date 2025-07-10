@@ -238,7 +238,6 @@ class _RaceScreenState extends State<RaceScreen> {
                 final showTime = idx == 0
                     ? RaceUtils.formatTime(top9[idx].totalTime)
                     : '+${RaceUtils.formatTimeDiff(diff)}';
-                final flag = RaceUtils.countryToFlag(top9[idx].athlete.country);
                 return Container(
                   width: 300,
                   height: 30,
@@ -370,7 +369,6 @@ class _RaceScreenState extends State<RaceScreen> {
       final showTime = RaceUtils.formatTime(entry.value.totalTime);
       final showDiff = entry.key == 0 ? '' : '+${RaceUtils.formatTimeDiff(diff)}';
       final totalMisses = entry.value.shootingMisses.fold(0, (a, b) => a + b);
-      final flag = RaceUtils.countryToFlag(entry.value.athlete.country);
       // Get points based on place (example logic, adjust as needed)
       final points = entry.key < 40 
           ? (entry.key < 30 ? usualRacePoints[entry.key] : 0)

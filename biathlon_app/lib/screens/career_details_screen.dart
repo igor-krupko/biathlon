@@ -6,6 +6,7 @@ import '../blocs/career_bloc.dart';
 import '../models/season.dart';
 import '../models/race.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'race_demo_presentation.dart';
 
 class CareerDetailsScreen extends StatelessWidget {
   const CareerDetailsScreen({super.key});
@@ -131,8 +132,24 @@ class CareerDetailsScreen extends StatelessWidget {
                             const SizedBox(height: 24),
                             ElevatedButton.icon(
                               icon: const Icon(Icons.sports_score),
-                              onPressed: () {
-                                context.go('/race');
+                              onPressed: () async {
+                                // Only show race demo if not first race of the season
+                                final isFirstRaceOfSeason = career.currentSeason.races.isNotEmpty && career.currentSeason.races.first.id == currentRace.id;
+                                if (isFirstRaceOfSeason) {
+                                  context.go('/race');
+                                } else {
+                                  final proceed = await showDialog<bool>(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (context) => RaceDemoPresentation(
+                                      career: career,
+                                      currentSeason: currentSeason,
+                                    ),
+                                  );
+                                  if (proceed == true) {
+                                    context.go('/race');
+                                  }
+                                }
                               },
                               label: const Text('Next Race'),
                             ),

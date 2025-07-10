@@ -243,7 +243,7 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
     
     // Build athleteIdToStartNumber map
     Map<int, int>? athleteIdToStartNumber;
-    final competitors = _simulationService.generateCompetitors(event.race.date.year);
+    final competitors = _simulationService.generateCompetitors(event.race.date);
     final allAthletes = List<Athlete>.from(competitors);
     if (!allAthletes.any((a) => a.id == event.player.id)) {
       allAthletes.add(event.player);
@@ -339,7 +339,7 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
         // Simulate the race for the top 30 only, show final results to the user
         final allSimulatedResults = await _simulationService.simulateCompetitors(
           event.race.track,
-          event.race.date.year,
+          event.race.date,
           athleteIdToStartNumber
         );
         final top30Athletes = allSimulatedResults.where((r) => top30Ids.contains(r.athlete.id)).toList();
@@ -380,7 +380,7 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
       } else {
         final allSimulatedResults = await _simulationService.simulateCompetitors(
           event.race.track,
-          event.race.date.year,
+          event.race.date,
           athleteIdToStartNumber,
           initialGaps: initialGaps,
         );
@@ -411,7 +411,7 @@ class RaceBloc extends Bloc<RaceEvent, RaceState> {
     }
     final allSimulatedResults = await _simulationService.simulateCompetitors(
       event.race.track,
-      event.race.date.year,
+      event.race.date,
       athleteIdToStartNumber,
       initialGaps: initialGaps,
     );

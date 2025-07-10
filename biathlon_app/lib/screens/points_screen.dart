@@ -128,7 +128,6 @@ class PointsScreen extends StatelessWidget {
                 ],
                 rows: List.generate(sortedAthletes.length, (i) {
                   final athlete = sortedAthletes[i];
-                  final flag = RaceUtils.countryToFlag(athlete.athlete.country);
                   // Filter resultsByRace for this athlete
                   final filteredResults = filterType == null
                     ? athlete.resultsByRace

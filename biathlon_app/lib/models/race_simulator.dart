@@ -10,9 +10,10 @@ class RaceSimulator {
     required Athlete athlete,
     required Track track,
     required Random random,
-    required int year,
+    required DateTime date,
     double initialGap = 0.0,
   }) {
+    int seasonYear = date.month < 6 ? date.year - 1 : date.year;
     final List<double> segmentTimes = [];
     final List<int> shootingMisses = [];
     final List<double> cumulativeTimes = [];
@@ -25,7 +26,7 @@ class RaceSimulator {
       for (int seg = 0; seg < segmentsPerLap; seg++) {
         // Simulate speed: base 16s, scale by athlete speed (80-100 -> 0.8-1.0x), add randomness
         double base = 8.0;
-        double speedFactor = (athlete.seasonStats![year]!.speed + random.nextInt(21) - 12) / 100.0; // ±3 randomness
+        double speedFactor = (athlete.seasonStats![seasonYear]!.speed + random.nextInt(21) - 12) / 100.0; // ±3 randomness
         speedFactor = sqrt(speedFactor.clamp(0.5, 1.1));
         double time = base + 8.0 / speedFactor;
         // Add a little more randomness
@@ -38,7 +39,7 @@ class RaceSimulator {
       // Shooting after each lap except last
       if (shootingIndex < track.shootingPositions.length) {
         final pos = track.shootingPositions[shootingIndex];
-        double shootingSkill = pos == ShootingPosition.down ? athlete.seasonStats![year]!.shootingDown : athlete.seasonStats![year]!.shootingStanding;
+        double shootingSkill = pos == ShootingPosition.down ? athlete.seasonStats![seasonYear]!.shootingDown : athlete.seasonStats![seasonYear]!.shootingStanding;
         int misses = 0;
         for (int shot = 0; shot < 5; shot++) {
           // Each shot: chance to hit = shootingSkill% ± randomness

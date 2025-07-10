@@ -8,6 +8,8 @@ import '../models/race.dart';
 import '../blocs/career_bloc.dart';
 import '../utils/race_utils.dart';
 import 'package:go_router/go_router.dart';
+import '../models/season.dart';
+import '../models/track_type.dart';
 
 class _CountryResults {
   final String country;
@@ -87,16 +89,67 @@ class _AthletesScreenState extends State<AthletesScreen> {
     }
   }
 
-  int _getScore(Athlete athlete) {
-    return _getStat(athlete, 'olympics', 1) * 100 +
-           _getStat(athlete, 'olympics', 2) * 20 +
-           _getStat(athlete, 'olympics', 3) * 10 +
-           _getStat(athlete, 'wc', 1) * 40 +
-           _getStat(athlete, 'wc', 2) * 10 +
-           _getStat(athlete, 'wc', 3) * 5 +
-           _getStat(athlete, 'worldCup', 1) * 5 +
-           _getStat(athlete, 'worldCup', 2) * 2 +
-           _getStat(athlete, 'worldCup', 3) * 1;
+  int _getScore(Athlete athlete, Map<String, List<int>> overallStandings, Map<String, List<int>> smallGlobe) {
+    final key = '${athlete.name}|${athlete.surname}|${athlete.country}';
+    int score = 0;
+    // Medals and races
+    score += _getStat(athlete, 'olympics', 1) * 100;
+    score += _getStat(athlete, 'olympics', 2) * 20;
+    score += _getStat(athlete, 'olympics', 3) * 10;
+    score += _getStat(athlete, 'wc', 1) * 40;
+    score += _getStat(athlete, 'wc', 2) * 10;
+    score += _getStat(athlete, 'wc', 3) * 5;
+    score += _getStat(athlete, 'worldCup', 1) * 5;
+    score += _getStat(athlete, 'worldCup', 2) * 2;
+    score += _getStat(athlete, 'worldCup', 3) * 1;
+    // Big globe
+    score += (overallStandings[key]?[0] ?? 0) * 120;
+    score += (overallStandings[key]?[1] ?? 0) * 20;
+    score += (overallStandings[key]?[2] ?? 0) * 10;
+    // Small globe
+    score += (smallGlobe[key]?[0] ?? 0) * 15;
+    score += (smallGlobe[key]?[1] ?? 0) * 3;
+    score += (smallGlobe[key]?[2] ?? 0) * 2;
+    return score;
+  }
+
+  // Helper to calculate season standings (overall and by discipline)
+  Map<String, List<int>> _calculateSeasonStandings(List<Season> seasons, List<List<RacePointsResult>> allRacesResults, {TrackType? discipline}) {
+    // Map athleteKey -> [#1st, #2nd, #3rd]
+    final Map<String, List<int>> standings = {};
+    for (final season in seasons) {
+      final seasonStart = DateTime(season.year, 6, 1);
+      final seasonEnd = DateTime(season.year + 1, 6, 1);
+      final seasonResults = allRacesResults.expand((x) => x)
+        .where((r) => r.race.date.isAfter(seasonStart) && r.race.date.isBefore(seasonEnd))
+        .where((r) => discipline == null || r.race.track.type == discipline)
+        .toList();
+      // Aggregate points by athlete
+      final Map<String, int> athletePoints = {};
+      for (final r in seasonResults) {
+        final key = '${r.athlete.name}|${r.athlete.surname}|${r.athlete.country}';
+        athletePoints[key] = (athletePoints[key] ?? 0) + r.points;
+      }
+      final sorted = athletePoints.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      for (int i = 0; i < sorted.length && i < 3; i++) {
+        final key = sorted[i].key;
+        standings.putIfAbsent(key, () => [0, 0, 0]);
+        standings[key]![i] += 1;
+      }
+    }
+    return standings;
+  }
+
+  // Helper to get only completed seasons
+  List<Season> _completedSeasons(List<Season> seasons, List<List<RacePointsResult>> allRacesResults) {
+    // A season is completed if all its races have at least one result in allRacesResults
+    final allResultsFlat = allRacesResults.expand((x) => x).toList();
+    return seasons.where((season) {
+      final raceIds = season.races.map((r) => r.id).toSet();
+      final resultRaceIds = allResultsFlat.map((r) => r.race.id).toSet();
+      return raceIds.difference(resultRaceIds).isEmpty && raceIds.isNotEmpty;
+    }).toList();
   }
 
   @override
@@ -147,10 +200,36 @@ class _AthletesScreenState extends State<AthletesScreen> {
   }
 
   Widget _buildAthletesTable(Athlete player) {
+    final state = context.watch<CareerBloc>().state as CareerActive;
+    final seasons = _completedSeasons(state.career.seasons, state.career.allRacesResults);
+    final allRacesResults = state.career.allRacesResults;
+    final overallStandings = _calculateSeasonStandings(seasons, allRacesResults);
+    final sprintStandings = _calculateSeasonStandings(seasons, allRacesResults, discipline: TrackType.sprint);
+    final pursuitStandings = _calculateSeasonStandings(seasons, allRacesResults, discipline: TrackType.pursuit);
+    final massStandings = _calculateSeasonStandings(seasons, allRacesResults, discipline: TrackType.mass);
+    final individualStandings = _calculateSeasonStandings(seasons, allRacesResults, discipline: TrackType.individual);
+    // Combine small globe stats
+    Map<String, List<int>> smallGlobe = {};
+    for (final key in {...sprintStandings.keys, ...pursuitStandings.keys, ...massStandings.keys, ...individualStandings.keys}) {
+      smallGlobe[key] = [
+        (sprintStandings[key]?[0] ?? 0) + (pursuitStandings[key]?[0] ?? 0) + (massStandings[key]?[0] ?? 0) + (individualStandings[key]?[0] ?? 0),
+        (sprintStandings[key]?[1] ?? 0) + (pursuitStandings[key]?[1] ?? 0) + (massStandings[key]?[1] ?? 0) + (individualStandings[key]?[1] ?? 0),
+        (sprintStandings[key]?[2] ?? 0) + (pursuitStandings[key]?[2] ?? 0) + (massStandings[key]?[2] ?? 0) + (individualStandings[key]?[2] ?? 0),
+      ];
+    }
     final columns = [
       DataColumn(label: const Text('№')),
       DataColumn(label: const Text('Country')),
       DataColumn(label: const Text('Name')),
+      DataColumn(
+        label: Row(children: [
+          Icon(Icons.star, color: Colors.deepPurple, size: 20),
+          const SizedBox(width: 4),
+          Text('Score'),
+        ]),
+        tooltip: 'Custom score: Olympics 1st*100 + 2nd*20 + 3rd*10 + WC 1st*40 + 2nd*10 + 3rd*5 + WorldCup 1st*5 + 2nd*2 + 3rd*1 + Big Globe 1st*120 + 2nd*20 + 3rd*10 + Small Globe 1st*15 + 2nd*3 + 3rd*2',
+        onSort: (i, _) => _onSort(i, (a) => _getScore(a, overallStandings, smallGlobe)),
+      ),
       DataColumn(
         label: Row(children: [
           Icon(Icons.emoji_events, color: Colors.amber, size: 20),
@@ -265,15 +344,12 @@ class _AthletesScreenState extends State<AthletesScreen> {
         tooltip: 'Total medals in Olympics',
         onSort: (i, _) => _onSort(i, (a) => _getTotal(a, 'olympics')),
       ),
-      DataColumn(
-        label: Row(children: [
-          Icon(Icons.star, color: Colors.deepPurple, size: 20),
-          const SizedBox(width: 4),
-          Text('Score'),
-        ]),
-        tooltip: 'Custom score: Olympics 1st*100 + 2nd*20 + 3rd*10 + WC 1st*40 + 2nd*10 + 3rd*5 + WorldCup 1st*5 + 2nd*2 + 3rd*1',
-        onSort: (i, _) => _onSort(i, (a) => _getScore(a)),
-      ),
+      DataColumn(label: Row(children:[Icon(Icons.emoji_events, color: Colors.blue, size: 18), Text(' Big Globe 1st')]), tooltip: 'Seasons won by points'),
+      DataColumn(label: Row(children:[Icon(Icons.emoji_events, color: Colors.grey, size: 18), Text(' Big Globe 2nd')]), tooltip: 'Seasons 2nd by points'),
+      DataColumn(label: Row(children:[Icon(Icons.emoji_events, color: Color(0xFFCD7F32), size: 18), Text(' Big Globe 3rd')]), tooltip: 'Seasons 3rd by points'),
+      DataColumn(label: Row(children:[Icon(Icons.sports_martial_arts, color: Colors.lightBlue, size: 18), Text(' Small Globe 1st')]), tooltip: 'Discipline seasons won (sum of all disciplines)'),
+      DataColumn(label: Row(children:[Icon(Icons.sports_martial_arts, color: Colors.grey, size: 18), Text(' Small Globe 2nd')]), tooltip: 'Discipline seasons 2nd (sum of all disciplines)'),
+      DataColumn(label: Row(children:[Icon(Icons.sports_martial_arts, color: Color(0xFFCD7F32), size: 18), Text(' Small Globe 3rd')]), tooltip: 'Discipline seasons 3rd (sum of all disciplines)'),
     ];
 
     return SingleChildScrollView(
@@ -286,8 +362,8 @@ class _AthletesScreenState extends State<AthletesScreen> {
           columns: columns,
           rows: List.generate(_athletes.length, (i) {
             final athlete = _athletes[i];
-            final flag = RaceUtils.countryToFlag(athlete.country);
             final isPlayer = athlete.name == player.name && athlete.surname == player.surname && athlete.country == player.country;
+            final key = '${athlete.name}|${athlete.surname}|${athlete.country}';
             return DataRow(
               color: isPlayer ? MaterialStateProperty.all(Colors.yellow.withOpacity(0.2)) : null,
               cells: [
@@ -300,6 +376,7 @@ class _AthletesScreenState extends State<AthletesScreen> {
                   ],
                 )),
                 DataCell(Text('${athlete.name} ${athlete.surname}')),
+                DataCell(Text(_getScore(athlete, overallStandings, smallGlobe).toString())),
                 DataCell(Text(_getStat(athlete, 'worldCup', 1).toString())),
                 DataCell(Text(_getStat(athlete, 'worldCup', 2).toString())),
                 DataCell(Text(_getStat(athlete, 'worldCup', 3).toString())),
@@ -312,7 +389,12 @@ class _AthletesScreenState extends State<AthletesScreen> {
                 DataCell(Text(_getStat(athlete, 'olympics', 2).toString())),
                 DataCell(Text(_getStat(athlete, 'olympics', 3).toString())),
                 DataCell(Text(_getTotal(athlete, 'olympics').toString())),
-                DataCell(Text(_getScore(athlete).toString())),
+                DataCell(Text((overallStandings[key]?[0] ?? 0).toString())),
+                DataCell(Text((overallStandings[key]?[1] ?? 0).toString())),
+                DataCell(Text((overallStandings[key]?[2] ?? 0).toString())),
+                DataCell(Text((smallGlobe[key]?[0] ?? 0).toString())),
+                DataCell(Text((smallGlobe[key]?[1] ?? 0).toString())),
+                DataCell(Text((smallGlobe[key]?[2] ?? 0).toString())),
               ]
             );
           }),
@@ -333,6 +415,15 @@ class _AthletesScreenState extends State<AthletesScreen> {
       DataColumn(label: const Text('№')),
       DataColumn(label: const Text('Country')),
       DataColumn(label: const Text('Name')),
+      DataColumn(
+        label: Row(children: [
+          Icon(Icons.star, color: Colors.deepPurple, size: 20),
+          const SizedBox(width: 4),
+          Text('Score'),
+        ]),
+        tooltip: 'Custom score: Olympics 1st*100 + 2nd*20 + 3rd*10 + WC 1st*40 + 2nd*10 + 3rd*5 + WorldCup 1st*5 + 2nd*2 + 3rd*1',
+        onSort: (i, _) => _onCountrySort(i, (c) => _sumScore(c)),
+      ),
       DataColumn(
         label: Row(children: [
           Icon(Icons.emoji_events, color: Colors.amber, size: 20),
@@ -447,15 +538,6 @@ class _AthletesScreenState extends State<AthletesScreen> {
         tooltip: 'Total medals in Olympics',
         onSort: (i, _) => _onCountrySort(i, (c) => _sumTotal(c, 'olympics')),
       ),
-      DataColumn(
-        label: Row(children: [
-          Icon(Icons.star, color: Colors.deepPurple, size: 20),
-          const SizedBox(width: 4),
-          Text('Score'),
-        ]),
-        tooltip: 'Custom score: Olympics 1st*100 + 2nd*20 + 3rd*10 + WC 1st*40 + 2nd*10 + 3rd*5 + WorldCup 1st*5 + 2nd*2 + 3rd*1',
-        onSort: (i, _) => _onCountrySort(i, (c) => _sumScore(c)),
-      ),
     ];
     // Build country data
     final List<_CountryRow> countryRows = countries.map((country) {
@@ -483,9 +565,17 @@ class _AthletesScreenState extends State<AthletesScreen> {
     // Sort by selected column
     if (_countrySortColumnIndex != null && _countrySortColumnIndex! >= 3) {
       final col = _countrySortColumnIndex! - 3;
-      countryRows.sort((a, b) => _countrySortAscending
-        ? a.stats[col].compareTo(b.stats[col])
-        : b.stats[col].compareTo(a.stats[col]));
+      // Score column is the last column, not in stats
+      if (col < countryRows.first.stats.length) {
+        countryRows.sort((a, b) => _countrySortAscending
+          ? a.stats[col].compareTo(b.stats[col])
+          : b.stats[col].compareTo(a.stats[col]));
+      } else {
+        // Score column
+        countryRows.sort((a, b) => _countrySortAscending
+          ? _sumScore(countryAthletes[a.country]!).compareTo(_sumScore(countryAthletes[b.country]!))
+          : _sumScore(countryAthletes[b.country]!).compareTo(_sumScore(countryAthletes[a.country]!)));
+      }
     }
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -529,7 +619,7 @@ class _AthletesScreenState extends State<AthletesScreen> {
 
   int _sumStat(List<Athlete> athletes, String tournament, int place) => athletes.fold(0, (sum, a) => sum + _getStat(a, tournament, place));
   int _sumTotal(List<Athlete> athletes, String tournament) => athletes.fold(0, (sum, a) => sum + _getTotal(a, tournament));
-  int _sumScore(List<Athlete> athletes) => athletes.fold(0, (sum, a) => sum + _getScore(a));
+  int _sumScore(List<Athlete> athletes) => athletes.fold(0, (sum, a) => sum + _getScore(a, {}, {}));
 
   Widget _buildRecordsTab() {
     // Helper to get athlete display name
@@ -588,25 +678,130 @@ class _AthletesScreenState extends State<AthletesScreen> {
         currentPodiumStreak[key] = 0;
       }
     }
-    // Helper to get max entry
-    MapEntry<String, int>? maxEntry(Map<String, int> map) {
-      if (map.isEmpty) return null;
-      return map.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    // Helper to get max entries (all with max value)
+    List<MapEntry<String, int>> maxEntries(Map<String, int> map) {
+      if (map.isEmpty) return [];
+      final maxValue = map.values.fold<int>(0, (prev, v) => v > prev ? v : prev);
+      return map.entries.where((e) => e.value == maxValue).toList();
     }
-    Widget recordRow(String label, Map<String, int> map) {
-      final entry = maxEntry(map);
+    Widget recordRowMulti(String label, Map<String, int> map) {
+      final entries = maxEntries(map);
+      if (entries.isEmpty) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+              const Text('-', style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        );
+      }
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-            if (entry != null)
-              Text('${athleteName(keyToAthlete[entry.key] ?? _athletes.firstWhere((a) => "${a.name}|${a.surname}|${a.country}" == entry.key, orElse: () => _athletes.first))}: ${entry.value}', style: const TextStyle(fontWeight: FontWeight.bold)),
-            if (entry == null)
-              const Text('-', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 16,
+              runSpacing: 4,
+              children: entries.map((entry) {
+                final athlete = keyToAthlete[entry.key];
+                if (athlete == null) return const SizedBox.shrink();
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RaceUtils.flagImage(athlete.country, size: 18),
+                    const SizedBox(width: 4),
+                    Text('${athlete.name} ${athlete.surname}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(width: 4),
+                    Text('(${athlete.country})', style: const TextStyle(color: Colors.grey)),
+                    const SizedBox(width: 8),
+                    Text('${entry.value}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                  ],
+                );
+              }).toList(),
+            ),
           ],
         ),
+      );
+    }
+    // --- Most Wins at Place ---
+    // Group all wins by (track name, country)
+    final Map<String, Map<String, int>> placeToAthleteWins = {}; // key: 'name|country', value: {athleteKey: count}
+    final Map<String, int> placeRaceCount = {}; // key: 'name|country', value: number of races
+    for (final r in results) {
+      final placeKey = '${r.race.track.name}|${r.race.track.country}';
+      placeRaceCount[placeKey] = (placeRaceCount[placeKey] ?? 0) + 1;
+      if (r.place == 1) {
+        placeToAthleteWins.putIfAbsent(placeKey, () => {});
+        final athleteKey = '${r.athlete.name}|${r.athlete.surname}|${r.athlete.country}';
+        placeToAthleteWins[placeKey]![athleteKey] = (placeToAthleteWins[placeKey]![athleteKey] ?? 0) + 1;
+      }
+    }
+    // Get all places sorted by number of races descending
+    final allPlaces = placeRaceCount.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    Widget mostWinsAtPlaceSection() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          const Text('Most Wins at Place', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          ...allPlaces.map((placeEntry) {
+            final placeKey = placeEntry.key;
+            final split = placeKey.split('|');
+            final placeName = split[0];
+            final placeCountry = split[1];
+            final winsMap = placeToAthleteWins[placeKey] ?? {};
+            final maxWinEntries = maxEntries(winsMap);
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('$placeName', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                      const SizedBox(width: 8),
+                      RaceUtils.flagImage(placeCountry, size: 20),
+                      const SizedBox(width: 8),
+                      Text('($placeCountry)', style: const TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  if (maxWinEntries.isNotEmpty)
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 4,
+                      children: maxWinEntries.map((entry) {
+                        final athlete = keyToAthlete[entry.key];
+                        if (athlete == null) return const SizedBox.shrink();
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            RaceUtils.flagImage(athlete.country, size: 18),
+                            const SizedBox(width: 4),
+                            Text('${athlete.name} ${athlete.surname}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                            const SizedBox(width: 4),
+                            Text('(${athlete.country})', style: const TextStyle(color: Colors.grey)),
+                            const SizedBox(width: 8),
+                            Text('Wins: ${entry.value}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                          ],
+                        );
+                      }).toList(),
+                    )
+                  else
+                    const Text('-', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            );
+          }),
+        ],
       );
     }
     return Padding(
@@ -616,24 +811,27 @@ class _AthletesScreenState extends State<AthletesScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Records', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              recordRow('Most Races Win', wins),
-              recordRow('Most WC Win', wcWins),
-              recordRow('Most Olympics Win', olympicsWins),
-              recordRow('Most Races Podiums', podiums),
-              recordRow('Most WC Podiums', wcPodiums),
-              recordRow('Most Olympics Podiums', olympicsPodiums),
-              recordRow('Most Sprint Wins', sprintWins),
-              recordRow('Most Pursuit Wins', pursuitWins),
-              recordRow('Most Individual Wins', individualWins),
-              recordRow('Most Mass Wins', massWins),
-              recordRow('Longest series of Wins', maxWinStreak),
-              recordRow('Longest series of Podiums', maxPodiumStreak),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Records', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                recordRowMulti('Most Races Win', wins),
+                recordRowMulti('Most WC Win', wcWins),
+                recordRowMulti('Most Olympics Win', olympicsWins),
+                recordRowMulti('Most Races Podiums', podiums),
+                recordRowMulti('Most WC Podiums', wcPodiums),
+                recordRowMulti('Most Olympics Podiums', olympicsPodiums),
+                recordRowMulti('Most Sprint Wins', sprintWins),
+                recordRowMulti('Most Pursuit Wins', pursuitWins),
+                recordRowMulti('Most Individual Wins', individualWins),
+                recordRowMulti('Most Mass Wins', massWins),
+                recordRowMulti('Longest series of Wins', maxWinStreak),
+                recordRowMulti('Longest series of Podiums', maxPodiumStreak),
+                mostWinsAtPlaceSection(),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,5 +1,5 @@
 final List<Map<String, String>> athletes2008 = [
-  {"name": "Ronny", "surname": "Hafsas", "country": "Norway", "speed": "99.00", "shootingDown": "670.0", "shootingStanding": "570.0"},
+  {"name": "Ronny", "surname": "Hafsas", "country": "Norway", "speed": "99.00", "shootingDown": "67.0", "shootingStanding": "57.0"},
   {"name": "Frode", "surname": "Andresen", "country": "Norway", "speed": "97.53", "shootingDown": "77.8", "shootingStanding": "71.8"},
   {"name": "Tomasz", "surname": "Sikora", "country": "Poland", "speed": "97.36", "shootingDown": "87.2", "shootingStanding": "81.2"},
   {"name": "Ole Einar", "surname": "Bjoerndalen", "country": "Norway", "speed": "97.36", "shootingDown": "88.6", "shootingStanding": "82.6"},
@@ -139,7 +139,7 @@ final List<Map<String, String>> athletes2008 = [
   {"name": "Kristaps", "surname": "Libietis", "country": "Latvia", "speed": "75.05", "shootingDown": "89.4", "shootingStanding": "83.4"},
   {"name": "Marko Juhani", "surname": "Mänttäri", "country": "Finland", "speed": "74.38", "shootingDown": "77.7", "shootingStanding": "71.7"},
   {"name": "Victor", "surname": "Pinzaru", "country": "Moldova", "speed": "74.38", "shootingDown": "70.0", "shootingStanding": "70.0"},
-  {"name": "Oystein", "surname": "Slettemark", "country": "Greenland", "speed": "74.21", "shootingDown": "56.0", "shootingStanding": "570.0"},
+  {"name": "Oystein", "surname": "Slettemark", "country": "Greenland", "speed": "74.21", "shootingDown": "56.0", "shootingStanding": "57.0"},
   {"name": "Igor", "surname": "Tabola", "country": "Russia", "speed": "74.04", "shootingDown": "70.0", "shootingStanding": "70.0"},
   {"name": "Athanassios", "surname": "Tsakiris", "country": "Greece", "speed": "73.70", "shootingDown": "70.0", "shootingStanding": "70.0"},
   {"name": "Frederic", "surname": "Jean", "country": "France", "speed": "73.70", "shootingDown": "90.8", "shootingStanding": "84.8"},

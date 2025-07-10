@@ -184,7 +184,7 @@ class ShootingBloc extends Bloc<ShootingEvent, ShootingState> {
     final stat = isProne ? player.shootingDown : player.shootingStanding;
     final statFraction = pow(stat / 100.0, 2);
     final maxSway = (isProne ? 40.0 : 48.0);
-    final swayStep = isProne ? 5 : 8 + (isProne ? 6.0 : 16.0) / statFraction;
+    final swayStep = 8 + (isProne ? 6.0 : 16.0) / statFraction;
 
     double dx = currentState.swayOffset.dx + (_random.nextDouble() * 2 - 1) * swayStep;
     double dy = currentState.swayOffset.dy + (_random.nextDouble() * 2 - 1) * swayStep;
